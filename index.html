@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>可行性报告 · 给听障者的个性化音乐之门</title>
+<meta name="description" content="腾讯音乐 AI 黑客松方案可行性评估：AI 为听障者生成个性化抽象影像，让音乐被"看见"。">
+<style>
+  :root{
+    --bg:#0e0e12;
+    --bg2:#15151c;
+    --card:#1a1a23;
+    --line:#2a2a36;
+    --text:#e9e9f0;
+    --muted:#9a9ab0;
+    --accent:#7c6cff;
+    --accent2:#c06bff;
+    --green:#34d399;
+    --amber:#fbbf24;
+    --red:#fb7185;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:840px;margin:0 auto;padding:0 22px 80px;}
+
+  /* HERO */
+  .hero{
+    position:relative;
+    margin:0 -22px 0;
+    padding:72px 22px 56px;
+    background:
+      radial-gradient(1200px 400px at 20% -10%, rgba(124,108,255,.35), transparent 60%),
+      radial-gradient(900px 500px at 90% 0%, rgba(192,107,255,.28), transparent 55%),
+      linear-gradient(180deg,#16121f,#0e0e12);
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 0);
+    background-size:22px 22px;opacity:.5;pointer-events:none;
+  }
+  .eyebrow{
+    display:inline-block;font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent2);font-weight:700;margin-bottom:18px;
+    border:1px solid rgba(192,107,255,.35);border-radius:999px;padding:5px 14px;
+    background:rgba(192,107,255,.08);
+  }
+  h1{
+    font-size:clamp(28px,5vw,44px);line-height:1.18;margin:0 0 14px;font-weight:800;
+    letter-spacing:-.01em;
+    background:linear-gradient(90deg,#fff,#d7ccff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .sub{font-size:17px;color:var(--muted);max-width:600px;margin:0 0 26px;}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:13px;color:var(--text);background:rgba(255,255,255,.05);
+    border:1px solid var(--line);border-radius:999px;padding:6px 13px;
+  }
+  .chip b{color:var(--accent2);font-weight:700;}
+
+  /* VERDICT */
+  .verdict{
+    margin-top:-28px;position:relative;z-index:2;
+    background:linear-gradient(180deg,#1d1830,#191622);
+    border:1px solid rgba(124,108,255,.4);border-radius:var(--radius);
+    padding:26px 26px 22px;box-shadow:0 24px 60px -30px rgba(124,108,255,.6);
+  }
+  .verdict h2{margin:0 0 4px;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .verdict .big{font-size:26px;font-weight:800;margin:2px 0 16px;color:#fff;}
+  .verdict .big span{color:var(--accent2);}
+  .vlist{display:grid;gap:12px;}
+  .vrow{display:flex;gap:12px;align-items:flex-start;font-size:15px;}
+  .vrow .ic{flex:0 0 auto;font-size:18px;line-height:1.5;}
+  .vrow b{color:#fff;}
+
+  /* SECTIONS */
+  section{margin-top:46px;}
+  .sec-head{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .num{
+    flex:0 0 auto;width:34px;height:34px;border-radius:10px;
+    display:grid;place-items:center;font-weight:800;font-size:15px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+    box-shadow:0 8px 20px -8px var(--accent);
+  }
+  h2.title{font-size:22px;margin:0;font-weight:800;letter-spacing:-.01em;}
+  p{margin:0 0 14px;}
+  .muted{color:var(--muted);}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin:14px 0;
+  }
+  .quote{
+    border-left:3px solid var(--accent);background:rgba(124,108,255,.07);
+    padding:16px 20px;border-radius:0 12px 12px 0;margin:16px 0;font-size:16px;
+  }
+  .insight{
+    border:1px solid rgba(124,108,255,.4);
+    background:linear-gradient(180deg,rgba(124,108,255,.1),rgba(124,108,255,.03));
+    border-radius:14px;padding:18px 22px;margin:16px 0;
+  }
+  .redline{
+    border-left:3px solid var(--amber);background:rgba(251,191,36,.07);
+    padding:14px 18px;border-radius:0 12px 12px 0;margin:16px 0;font-size:15px;
+  }
+  ul.clean{margin:8px 0 14px;padding-left:0;list-style:none;}
+  ul.clean li{position:relative;padding-left:24px;margin:9px 0;}
+  ul.clean li::before{content:"";position:absolute;left:4px;top:11px;width:7px;height:7px;border-radius:50%;background:var(--accent);}
+  ol.steps{counter-reset:s;list-style:none;padding-left:0;margin:8px 0;}
+  ol.steps li{counter-increment:s;position:relative;padding-left:42px;margin:12px 0;}
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:8px;
+    display:grid;place-items:center;font-weight:700;font-size:13px;
+    background:rgba(124,108,255,.15);border:1px solid rgba(124,108,255,.35);color:var(--accent2);
+  }
+  strong{color:#fff;font-weight:700;}
+  .yes{color:var(--green);font-weight:700;}
+  .no{color:var(--red);font-weight:700;}
+  .warn{color:var(--amber);font-weight:700;}
+
+  /* TABLE */
+  .tablewrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:460px;}
+  th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+  thead th{background:rgba(124,108,255,.12);color:#fff;font-weight:700;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.02);}
+
+  /* layered tech */
+  .layer{display:flex;gap:14px;margin:12px 0;align-items:flex-start;}
+  .layer .tag{flex:0 0 auto;width:54px;height:54px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:rgba(124,108,255,.12);border:1px solid var(--line);}
+  .layer .body b{display:block;color:#fff;margin-bottom:2px;}
+  .layer .body small{color:var(--muted);font-size:13.5px;}
+
+  /* risk grid */
+  .risk{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px dashed var(--line);}
+  .risk:last-child{border-bottom:none;}
+  .risk .n{flex:0 0 auto;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:13px;font-weight:700;background:rgba(251,113,133,.14);color:var(--red);border:1px solid rgba(251,113,133,.3);}
+  .checklist li{list-style:none;position:relative;padding-left:30px;margin:10px 0;}
+  .checklist{padding-left:0;}
+  .checklist li::before{content:"☐";position:absolute;left:2px;top:-1px;color:var(--accent2);font-size:18px;}
+
+  footer{margin-top:54px;padding-top:24px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted);}
+  footer a{color:var(--accent2);text-decoration:none;word-break:break-all;}
+  footer a:hover{text-decoration:underline;}
+  footer li{margin:7px 0;}
+  .foot-meta{margin-top:22px;font-size:12.5px;color:#666;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">可行性报告 · Feasibility</span>
+    <h1>给听障者的「个性化音乐之门」</h1>
+    <p class="sub">AI 先学会"你"怎么感知世界，再把每首歌生成一段只属于你的抽象影像——让音乐被"看见"。</p>
+    <div class="chips">
+      <span class="chip"><b>赛事</b>　腾讯音乐 AI 黑客松（AI×音乐）</span>
+      <span class="chip"><b>窗口</b>　约 6/25 截止 · 线上待确认</span>
+      <span class="chip"><b>工作名</b>　声画像 / See（待定）</span>
+      <span class="chip"><b>日期</b>　2026-06-15</span>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <h2>结论速览</h2>
+    <div class="big">有条件<span>可行</span></div>
+    <div class="vlist">
+      <div class="vrow"><span class="ic">✅</span><div><b>作为 10 天黑客松 demo——可行。</b>前提：① 只做 1–2 首预处理好的展示曲，不承诺实时通吃任意歌；② 视觉走"程序化抽象"为主；③ 把"个性化 + 抽象 + 看得懂"那一下演到位。</div></div>
+      <div class="vrow"><span class="ic">⚠️</span><div><b>竞争力——有条件。</b>核心点子已被顶会论文（µCap, CHI 2026）占过，必须靠 <b>个性化 + 中文 + 真落地产品</b> 差异化。赌的是执行与应用，不是"首创"。</div></div>
+      <div class="vrow"><span class="ic">🔴</span><div><b>不可行的版本：</b>别承诺"实时任意歌的深度理解"，也别指望 10 天内做得比 CHI 论文更前沿——那个方向会输。</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="num">1</span><h2 class="title">概念</h2></div>
+    <div class="quote">
+      AI 先根据你（上传你写的东西、你的表达）建一个<strong>「感知画像」</strong>，然后每首歌都为你生成一段<strong>专属的抽象影像</strong>。没有画像时给默认抽象，有画像就越来越懂你。它不告诉你这首歌"是什么意思"，<strong>它给你一扇"你能走进去"的门。</strong>
+    </div>
+    <p class="muted">关键词：听障者 · 个性化 · 抽象 · 让音乐被"看见"</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">2</span><h2 class="title">解决谁的什么问题</h2></div>
+    <ul class="clean">
+      <li><strong>谁：</strong>听障 / 聋人（全球 4.3 亿+，中国超 2700 万）。</li>
+      <li><strong>痛点：</strong>带歌词的歌还能读词，但<strong>纯器乐 / 古典 / 编曲段落对他们是一片空白</strong>。现有方案（震动、灯光）只能让他们"感觉到有声音"，却感觉不到这首歌在<em>表达什么</em>。</li>
+      <li><strong>触发瞬间：</strong>一个聋人想知道"大家都在听的这首歌，到底好在哪 / 在讲什么"，但没有任何工具能让他真正"进入"这首歌。</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">3</span><h2 class="title">核心洞察 · 这个角度为什么成立</h2></div>
+    <p><strong>最大难点不是技术，是一个哲学陷阱：「理解音乐」根本没有标准答案。</strong>同一首歌，每个人感受不同；同一个人，15 岁和 40 岁听也不同。任何产品只要敢说"这首歌的意思是 X"，立刻被一句"谁说的？"打趴，而且无聊。</p>
+    <div class="insight">
+      <p style="margin:0 0 10px"><strong>解法：别去定义"理解"，把"主观性"本身做成产品。</strong></p>
+      <p style="margin:0 0 8px"><span class="no">✕ 错的做法</span>（µCap 那种）：给一个客观、统一的"标准描述"。哲学上站不住，体验也闷。</p>
+      <p style="margin:0"><span class="yes">✓ 我们的做法</span>：AI <strong>不当意义的权威，当一面镜子 / 一扇门</strong>——它给你一个让你<em>投射自己意义</em>的抽象影像。根本没有"对错"，因为意义是听者自己的。</p>
+    </div>
+    <ul class="clean">
+      <li><strong>为什么必须"抽象"而非"具象"：</strong>抽象的东西（像一幅抽象画）允许人随年龄、随心境<strong>重新解读</strong>——恰好复制了音乐最珍贵的属性。具象（"爱情→两人缠绵"）会把意义冻死成一种，还会撞进 AI 生成 MV 的红海。</li>
+      <li><strong>为什么必须"个性化"：</strong>这是甩开论文的关键——论文给所有人一套统一输出；我们给一千个人一千扇门。不是技术创新，是把"音乐是主观的"直接做成了产品形态。</li>
+    </ul>
+    <div class="redline"><strong>⚠️ 唯一红线：</strong>抽象必须由音乐的<strong>语义 / 情绪结构</strong>驱动，否则就退化成"花哨的示波器"。抽象得<em>有意义</em>，不能是好看的噪声。</div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">4</span><h2 class="title">现状与竞品 · 诚实评估</h2></div>
+    <div class="card">
+      <p style="margin:0 0 8px"><strong>A. 学术界已经做了，而且很新、很顶</strong></p>
+      <ul class="clean" style="margin-top:6px">
+        <li><strong>µCap（CHI 2026，今年 4 月）</strong>——把器乐音频转成<strong>时间对齐的文字 + 简单视觉</strong>给聋人读，与本方案核心高度重合。短板即我们的机会：他们自承"<em>弦乐根本没法稳定地用文字表示</em>"；是<strong>统一输出</strong>不个性化；是<strong>论文 demo</strong> 非产品；<strong>全英文语境</strong>。</li>
+        <li>同期 CHI 2026 还有一串相关研究（给聋人的 AI 音乐心理治疗、帮聋人反思性写歌）——<strong>这个赛道学术上是热的。</strong></li>
+        <li>底层技术（音频→语义文字, music captioning）已成熟：MusCaps、LP-MusicCaps、SonicVerse、36 万首的 JamendoMaxCaps 数据集。</li>
+      </ul>
+    </div>
+    <p style="margin:18px 0 8px"><strong>B. 市面产品几乎都是"信号级"，不懂含义</strong></p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>产品</th><th>做法</th><th>局限</th></tr></thead>
+        <tbody>
+          <tr><td>Apple Music Haptics</td><td>音乐转 iPhone 震动</td><td>只传节奏强弱，不传含义</td></tr>
+          <tr><td>Shake-音乐震动（国内）</td><td>麦克风听歌 → 震动</td><td>同上</td></tr>
+          <tr><td>ViTune（CHI 2020）</td><td>可视化波形 + 触觉</td><td>信号级，非语义</td></tr>
+          <tr><td>Visualfy / BW Dance</td><td>声音 → 颜色 / 灯光警示</td><td>偏"提醒"，非"理解"</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight">
+      <p style="margin:0 0 6px"><strong>C. 差异点（一句话）</strong></p>
+      <p style="margin:0">别人做 <strong>信号→形状</strong>（震动/波形，傻）或 <strong>统一的客观描述</strong>（µCap）。<br>我们做 <strong>含义→个性化抽象影像</strong>（懂你那一个人）+ <strong>中文 / TME 语境</strong> + <strong>真能用的产品</strong>。</p>
+    </div>
+    <div class="redline"><strong>诚实的话：</strong>纯"给聋人翻译音乐"这个点子 novelty 已被论文占。本方案的赌注<strong>不是"首创"，是"首个落地、个性化、中文的产品"</strong>。</div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">5</span><h2 class="title">最小可行 Demo（MVP）</h2></div>
+    <div class="quote">让评委"哦！"的瞬间 = <strong>同一首歌，两个不同的人，两段不同的抽象影像，每段都贴合那个人。</strong></div>
+    <ol class="steps">
+      <li><strong>建画像</strong>：用户写几句"我是谁 / 我怎么感受世界"（或上传一段自己写的文字）→ AI 生成「感知画像」。</li>
+      <li><strong>选歌</strong>：从预备的展示曲里选一首。</li>
+      <li><strong>生成</strong>：AI 把这首歌 → 一段<strong>为这个画像定制的抽象影像</strong>（颜色/形态/运动随音乐情绪与结构走）。</li>
+      <li><strong>对照</strong>：并排放"默认抽象" vs "你的专属抽象"，<strong>直观证明个性化是真的</strong>。</li>
+    </ol>
+    <p class="muted">Demo 不追求"实时通吃任意歌"。<strong style="color:var(--text)">只做透 1–2 首展示曲</strong>，把"个性化 + 抽象 + 看得懂"这一下演到位。</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">6</span><h2 class="title">技术实现路径</h2></div>
+    <p class="muted">把"理解音乐"拆成三层：</p>
+    <div class="layer"><div class="tag">📊</div><div class="body"><b>① 客观层 · 在发生什么（现成工具，成熟）</b><small>分轨 Demucs / Spleeter · 节拍调性强弱结构 librosa / essentia · 乐器情绪打标（现成音频 tagging 模型）</small></div></div>
+    <div class="layer"><div class="tag">🧠</div><div class="body"><b>② 语义层 · 它在表达什么（AI 的价值所在）</b><small>CLAP（音频↔文字同一空间）· 或音频大模型 Qwen-Audio / Gemini · 或把①的特征喂 LLM 生成情绪/叙事描述</small></div></div>
+    <div class="layer"><div class="tag">🎨</div><div class="body"><b>③ 个性化 + 呈现层 · 核心</b><small>LLM 把用户文字 → 感知画像（色彩/意象/节奏感参数）→ 驱动抽象视觉生成。方案 A（推荐）：程序化生成艺术 p5.js / WebGL，单文件网页能跑、可控、快。方案 B（可选）：AI 逐段生成关键帧画面，更惊艳但慢、重。</small></div></div>
+    <div class="redline"><strong>🛠️ 10 天怎么取巧：</strong>展示曲离线预处理①②，现场不算；视觉走方案 A 为主，方案 B 顶多做 1 个高光片段。<strong>护城河是概念和那一下"哦"，不是 pipeline——别在工程上死磕。</strong></div>
+    <p class="muted" style="font-size:13.5px"><strong style="color:var(--text)">栈：</strong>单文件 HTML/JS + canvas/WebGL · Python(librosa/Demucs) 离线预处理 · 任意 LLM API · 可选 CLAP / 图像生成</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">7</span><h2 class="title">可行性评估</h2></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>维度</th><th>评估</th></tr></thead>
+        <tbody>
+          <tr><td>概念清晰度</td><td><span class="yes">🟢 高</span>　一句话能说清，有"哦"瞬间</td></tr>
+          <tr><td>技术可行性（10天，预制展示曲）</td><td><span class="yes">🟢 中高</span>　都是现成积木，难在拼和审美</td></tr>
+          <tr><td>技术可行性（实时任意歌）</td><td><span class="no">🔴 低</span>　别在 demo 里承诺</td></tr>
+          <tr><td>差异化 / 护城河</td><td><span class="warn">🟡 中</span>　概念被论文占过，靠"个性化+中文+落地"拉开</td></tr>
+          <tr><td>演示效果</td><td><span class="yes">🟢 高</span>　视觉化、情感强、易传播</td></tr>
+          <tr><td>非开发也能主导</td><td><span class="yes">🟢 是</span>　概念/产品/画像逻辑/审美 vs 开发负责 pipeline</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">8</span><h2 class="title">风险与不确定点</h2></div>
+    <div class="card">
+      <div class="risk"><span class="n">1</span><div><strong>"太抽象 = 看不懂"</strong>：若观众只看到漂亮色块、get 不到"它有含义"，就废了。怎么让抽象"被读懂"又不退化成示波器？<span class="warn">（最大风险）</span></div></div>
+      <div class="risk"><span class="n">2</span><div><strong>个性化怎么演得可信</strong>：怎么证明"这段是为你定制"，而不是随机换了套配色？</div></div>
+      <div class="risk"><span class="n">3</span><div><strong>µCap 已存在</strong>：懂行的评委会说"做过了"。"个性化+中文+产品"的差异够不够硬？</div></div>
+      <div class="risk"><span class="n">4</span><div><strong>评判标准未知</strong>：TME 看"技术"还是"创意/社会价值"？决定偏哪边。</div></div>
+      <div class="risk"><span class="n">5</span><div><strong>无真实用户验证</strong>：没有聋人用户反馈，需求与买账度未证实。</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">9</span><h2 class="title">待确认</h2></div>
+    <ul class="checklist">
+      <li><strong>黑客松规则（关键）</strong>：是否全程线上？6/25 是报名还是交付？能否单人/几人一队？提交什么形式？</li>
+      <li><strong>队伍分工</strong>：音频 pipeline / 前端视觉 / 画像逻辑 + pitch</li>
+      <li><strong>展示曲选哪 1–2 首</strong>：建议一首有情绪起伏的纯器乐 + 一首大家熟的中文歌</li>
+      <li><strong>工作名定不定</strong></li>
+    </ul>
+  </section>
+
+  <footer>
+    <strong style="color:var(--text)">参考来源</strong>
+    <ul>
+      <li>µCap: Instrumental Music Captions for DHH (CHI 2026) — <a href="https://dl.acm.org/doi/10.1145/3772318.3790729">dl.acm.org/doi/10.1145/3772318.3790729</a></li>
+      <li>Emotive Captions for DHH (CHI 2023) — <a href="https://dl.acm.org/doi/full/10.1145/3544549.3585880">dl.acm.org/doi/full/10.1145/3544549.3585880</a></li>
+      <li>LP-MusicCaps — <a href="https://arxiv.org/abs/2307.16372">arxiv.org/abs/2307.16372</a></li>
+      <li>SonicVerse (2025) — <a href="https://arxiv.org/pdf/2506.15154">arxiv.org/pdf/2506.15154</a></li>
+      <li>JamendoMaxCaps（36 万数据集）— <a href="https://arxiv.org/html/2502.07461v2">arxiv.org/html/2502.07461v2</a></li>
+      <li>ViTune (CHI 2020) — <a href="https://dl.acm.org/doi/10.1145/3334480.3383046">dl.acm.org/doi/10.1145/3334480.3383046</a></li>
+      <li>Shake-音乐震动 — <a href="https://apps.apple.com/cn/app/id1624283706">App Store</a></li>
+    </ul>
+    <div class="foot-meta">可行性报告 · 2026-06-15 · 腾讯音乐 AI 黑客松方案评估</div>
+  </footer>
+
+</div>
+</body>
+</html>
