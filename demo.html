@@ -169,7 +169,7 @@
   <!-- STEP 3 -->
   <div class="panel" data-p="3">
     <div class="sectit">③ 看见这首歌</div>
-    <p class="sectsub">下面这段抽象影像，是 AI 按<strong style="color:#fff">你的画像</strong>把这首歌翻译出来的。整首歌已先分析、按它自己的动态范围归一化——所以画面跟着<strong style="color:#fff">这首歌自己的起伏</strong>走。</p>
+    <p class="sectsub">下面这段抽象影像 = <strong style="color:#fff">CLAP 读出的这首歌"气质"</strong>（定画面的魂）+ 实时声学起伏（定动）+ <strong style="color:#fff">你的感知画像</strong>（叠一层）。同一首歌、不同的人，看见不一样的它。</p>
     <div class="stage single">
       <canvas id="mainCanvas"></canvas>
       <div class="topbadge" id="mainBadge">你的视角</div>
@@ -212,11 +212,12 @@
   </div>
 
   <div class="note">
-    <b>关于这个 Demo（诚实说明）：</b>音乐可由你<b>上传</b>（在浏览器内解码、先分析整首再播放，不上传服务器、不碰版权），或用内置合成样曲；「感知画像」在你本机即时分析、不联网。抽象视觉由这首歌<b>自己的能量/亮度起伏（按本曲动态范围归一化）</b>+ 你的画像参数共同驱动，<b>不是随机噪声</b>。<b>诚实的局限</b>：现在用的是信号级特征，还没到"图像=听歌的感受"——真正传达情感需要音频<b>语义</b>模型（CLAP / 音频大模型），这是下一步。详见<a href="index.html">可行性报告</a>。
+    <b>关于这个 Demo（诚实说明）：</b>上传的歌在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏，按本曲归一化），再用 <b>CLAP 模型（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出这首歌的"气质向量"（温暖/紧张/明亮/有力/梦幻/繁密 6 轴）。<b>气质定画面的"魂"、信号定逐帧的"动"、你的画像再叠一层</b>——所以同一首歌、不同的人，看见不一样的它。<b>诚实的局限</b>：CLAP 气质是零样本、较粗；把"气质"变成"真正对味的画面"（呈现端）仍是开放难题，也是继续打磨的方向。详见<a href="index.html">可行性报告</a>。
   </div>
   <div class="roadmap">
-    <b>Roadmap（这版没做、但想做的）：</b>
-    ① 接音频语义模型，让画面传达"情感"而非只是"动静"；
+    <b>Roadmap：</b>
+    ✅ 已接 <b>CLAP</b>（音频→气质向量，on-device，零 key）；
+    ① 呈现端再升级：把"气质"映射成更对味的画面（分段气质 + 更强的生成视觉）；
     ② <b>带词 / 纯器乐分两种模式</b>——带词走"AI-MV 式"易懂表达，纯器乐走真正的抽象；
     ③ 按<b>听歌历史</b>自动建画像（真实产品由 TME 数据驱动，无需自己描述）；
     ④ 实时（边听边生成）。
@@ -285,7 +286,7 @@ $('#restart').onclick=()=>{stopAudio();goStep(1);};
 /* ---------- 样曲 ---------- */
 $$('.scard').forEach(c=>c.onclick=()=>{
   stopAudio(); $$('.scard').forEach(x=>x.classList.remove('sel')); c.classList.add('sel');
-  selectedSong=c.dataset.song; mode='synth'; $('#mainBadge').textContent='你的视角';
+  selectedSong=c.dataset.song; mode='synth'; songEssence=null; essMoodStr=''; $('#mainBadge').textContent='你的视角';
   setTimeout(()=>goStep(3),180);
 });
 
@@ -302,7 +303,10 @@ function handleFile(file){
     $('#dropsub').textContent='正在分析整首歌（低/中/高频 + 起伏，在本机）…';
     audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
     fileTL=await analyzeBuffer(ab);
-    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）已分析完毕';
+    $('#dropsub').textContent='AI 正在用 CLAP 读这首歌的"气质"（首次需下载模型，约 10–30 秒，全在本机）…';
+    songEssence=null; essMoodStr='';
+    try{ songEssence=await extractEssence(ab); essMoodStr=essenceMood(songEssence); }catch(e){ songEssence=null; }
+    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）'+(essMoodStr?' · 气质：'+essMoodStr:' · 已分析（CLAP 未就绪，退回信号级）');
     $('#mainBadge').textContent='你的视角 · '+file.name;
     goStep(3);
   }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
@@ -353,6 +357,45 @@ function narrate(int,val,bass,onset){
   if(int<.34) return bass>.5 ? {mood:'低伏',cap:'低音独自铺在底下，沉、稳、内省。'} : (val>.45?{mood:'清浅',cap:'声音很轻，明亮而克制。'}:{mood:'低回',cap:'安静地流动，像在自言自语。'});
   if(int<.64) return {mood:'铺展',cap:'层次在叠加，情绪缓缓展开。'};
   return val>.5 ? {mood:'明亮高点',cap:'能量推到很高、高频明亮——很满、很开阔的一刻。'} : {mood:'厚重轰鸣',cap:'低频压上来，沉重而有力量。'};
+}
+
+/* ---------- CLAP 气质提取（向量路：用 CLAP 把音乐的"抽象"摘成 6 条气质轴） ---------- */
+let songEssence=null, essMoodStr='';
+const CONCEPT={
+  warmth:['warm tender emotional music','cold mechanical detached sound'],
+  energy:['energetic intense powerful music','soft gentle quiet music'],
+  bright:['bright uplifting joyful music','dark gloomy heavy music'],
+  tense:['tense anxious restless music','calm peaceful relaxed music'],
+  flow:['dreamy floating ethereal flowing music','sharp aggressive driving rhythmic music'],
+  density:['lush dense richly layered music','sparse minimal empty music'],
+};
+const ALL_LABELS=[].concat(...Object.values(CONCEPT));
+async function to48kMono(ab){
+  const sr=48000, oc=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,Math.max(1,Math.ceil(ab.duration*sr)),sr);
+  const src=oc.createBufferSource(); src.buffer=ab; src.connect(oc.destination); src.start(0);
+  const rb=await oc.startRendering(); return rb.getChannelData(0);
+}
+async function extractEssence(ab){
+  if(!window.CLAP) return null;
+  const mono=await to48kMono(ab), sr=48000, total=mono.length;
+  const winLen=Math.min(total, sr*10), nWin=Math.min(2,Math.max(1,Math.floor(total/winLen)));
+  const acc={}; ALL_LABELS.forEach(l=>acc[l]=0);
+  for(let w=0; w<nWin; w++){
+    const start=Math.floor((total-winLen)*(nWin<=1?0.4:(w/(nWin-1))));
+    const out=await window.CLAP.classify(mono.subarray(start,start+winLen), ALL_LABELS);
+    out.forEach(o=>acc[o.label]+=o.score);
+  }
+  const sc=l=>acc[l]/nWin, axis=p=>{ const a=sc(p[0]),b=sc(p[1]); return clamp(a/((a+b)||1),0,1); };
+  return { warmth:axis(CONCEPT.warmth), energy:axis(CONCEPT.energy), bright:axis(CONCEPT.bright), tense:axis(CONCEPT.tense), flow:axis(CONCEPT.flow), density:axis(CONCEPT.density) };
+}
+function essenceMood(e){
+  if(!e) return '';
+  return [[Math.abs(e.warmth-.5),e.warmth>.5?'温暖':'冷峻'],[Math.abs(e.tense-.5),e.tense>.5?'紧张':'松弛'],[Math.abs(e.bright-.5),e.bright>.5?'明亮':'晦暗'],[Math.abs(e.energy-.5),e.energy>.5?'有力':'轻柔'],[Math.abs(e.flow-.5),e.flow>.5?'梦幻流动':'凌厉'],[Math.abs(e.density-.5),e.density>.5?'繁密':'疏阔']].sort((a,b)=>b[0]-a[0]).slice(0,3).map(c=>c[1]).join('、');
+}
+function blendProfile(prof,e){
+  if(!e) return prof;
+  const m=(a,b)=>clamp(a*.5+b*.5,0,1);
+  return { warmth:m(prof.warmth,e.warmth), energy:m(prof.energy,e.energy), structure:m(prof.structure,1-e.flow), density:m(prof.density,e.density), neutral:prof.neutral };
 }
 
 /* ---------- 步骤切换 ---------- */
@@ -481,9 +524,10 @@ class Engine{
 /* ---------- 渲染循环 ---------- */
 let engMain=null, engDef=null, engYou=null, view='single', lastTS=0;
 function ensureEngines(){
-  if(!engMain) engMain=new Engine($('#mainCanvas'),profile||DEFAULT_PROFILE); else { engMain.p=profile||DEFAULT_PROFILE; engMain.seed(); }
-  if(!engDef) engDef=new Engine($('#canvasDefault'),DEFAULT_PROFILE);
-  if(!engYou) engYou=new Engine($('#canvasYou'),profile||DEFAULT_PROFILE); else { engYou.p=profile||DEFAULT_PROFILE; engYou.seed(); }
+  const pm=blendProfile(profile||DEFAULT_PROFILE,songEssence), pd=blendProfile(DEFAULT_PROFILE,songEssence), py=blendProfile(profile||DEFAULT_PROFILE,songEssence);
+  if(!engMain) engMain=new Engine($('#mainCanvas'),pm); else { engMain.p=pm; engMain.seed(); }
+  if(!engDef) engDef=new Engine($('#canvasDefault'),pd); else { engDef.p=pd; engDef.seed(); }
+  if(!engYou) engYou=new Engine($('#canvasYou'),py); else { engYou.p=py; engYou.seed(); }
 }
 function setView(v){ view=v; }
 function frame(ts){
@@ -493,8 +537,10 @@ function frame(ts){
     if(mode==='file' && audioBuffer && fileTL){
       let e=actx.currentTime-startTime; e=fileDur?(((e%fileDur)+fileDur)%fileDur):0; prog=fileDur?e/fileDur:0;
       const idx=clamp(Math.floor(e*fileTL.fps),0,fileTL.n-1);
-      const int=fileTL.energy[idx], val=fileTL.bright[idx], bass=fileTL.bass?fileTL.bass[idx]:.5, onset=fileTL.onset?fileTL.onset[idx]:0;
+      const int=fileTL.energy[idx], bass=fileTL.bass?fileTL.bass[idx]:.5, onset=fileTL.onset?fileTL.onset[idx]:0;
+      let val=fileTL.bright[idx]; if(songEssence) val=clamp(val*.6+songEssence.bright*.4,0,1);
       sig=Object.assign({int,val,bass,onset},narrate(int,val,bass,onset));
+      if(essMoodStr) sig.mood='气质 · '+essMoodStr;
     } else if(curSong){
       const dur=SONGS[curSong].dur; let e=((actx.currentTime-startTime)%dur+dur)%dur; sig=sectionAt(curSong,e); prog=e/dur;
     }
@@ -518,6 +564,15 @@ $('#playBtn').onclick=togglePlay;
 $('#playBtn2').onclick=togglePlay;
 $('#toSplit').onclick=()=>{ goStep(4); if(!playing) startAudio(); };
 window.addEventListener('resize',()=>{ [engMain,engDef,engYou].forEach(e=>e&&e.resize()); });
+</script>
+
+<!-- CLAP（向量路）：在浏览器内用 transformers.js 跑 CLAP，零 key、不上传 -->
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+env.allowLocalModels=false;
+let _pipe=null,_loading=null;
+function getPipe(){ if(_pipe) return Promise.resolve(_pipe); if(!_loading) _loading=pipeline('zero-shot-audio-classification','Xenova/clap-htsat-unfused').then(p=>(_pipe=p)); return _loading; }
+window.CLAP={ ready:false, async classify(float32,labels){ const p=await getPipe(); window.CLAP.ready=true; return p(float32,labels); } };
 </script>
 </body>
 </html>
