@@ -169,7 +169,7 @@ const midi=m=>440*Math.pow(2,(m-69)/12);
 
 let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null, selectedSong=null;
 let rawAudioBytes=null, rawAudioMime='audio/mpeg';
-const GEMINI_MODEL='gemini-2.0-flash'; // 不可用就换 gemini-2.5-flash / gemini-1.5-flash
+const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite']; // 依次尝试，跳过没免费额度的
 const CAP_PROMPT='你是帮助听障者"读懂"音乐的解说员。请用中文写一段 150 字以内的解说，描述这段音乐的：情绪、张力的起伏（从安静到爆发等）、像什么画面或场景、乐器/声响的质感。目标是让一个听不见的人也能在脑海里"感受到"这首歌。要求：具体、有画面感；不要写歌词、不要逐句翻译、不要泛泛而谈（如"很好听""很有感染力"）。直接给解说正文，不要前缀。';
 let songEssence=null, essMoodStr='';
 let _beatPtr=0, _lastE=0;
@@ -391,15 +391,20 @@ $('#captionBtn').onclick=async()=>{
   let key=getKey()|| $('#keyInput').value.trim();
   if(!key){ $('#captionHint').textContent='👇 先在下面填入你的 Gemini key（AIza...）再点解说'; $('#keyInput').focus(); return; }
   localStorage.setItem('geminiKey',key); refreshKeyUI();
-  const box=$('#aiCaption'); box.classList.add('show'); box.innerHTML='<div class="tag">AI 解说 · 生成中…</div>正在听这首歌、写解说（约几秒）…';
-  try{
-    const body={contents:[{parts:[{inline_data:{mime_type:rawAudioMime||'audio/mpeg',data:u8ToB64(rawAudioBytes)}},{text:CAP_PROMPT}]}],generationConfig:{temperature:0.9,maxOutputTokens:400}};
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok){ const m=(j.error&&j.error.message)||('HTTP '+r.status); box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+m+'<br><span style="color:#9696ac;font-size:13px">key 对吗？（要 AIza 开头）。若说模型不存在，把代码里 GEMINI_MODEL 换成 gemini-2.5-flash。</span>'; return; }
-    const text=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
-    box.innerHTML='<div class="tag">AI 解说 · Gemini</div>'+(text||'(空)');
-  }catch(e){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+String(e); }
+  const box=$('#aiCaption'); box.classList.add('show');
+  const body={contents:[{parts:[{inline_data:{mime_type:rawAudioMime||'audio/mpeg',data:u8ToB64(rawAudioBytes)}},{text:CAP_PROMPT}]}],generationConfig:{temperature:0.9,maxOutputTokens:400}};
+  let lastErr='';
+  for(const model of GEMINI_MODELS){
+    box.innerHTML='<div class="tag">AI 解说 · '+model+' 生成中…</div>正在听这首歌、写解说…';
+    try{
+      const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){ const text=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); box.innerHTML='<div class="tag">AI 解说 · '+model+'</div>'+(text||'(空)'); return; }
+      lastErr=(j.error&&j.error.message)||('HTTP '+r.status);
+      if(!/quota|exceed|not found|NOT_FOUND|unsupported|limit|404/i.test(lastErr)) break; // key 无效等错误就别再试
+    }catch(e){ lastErr=String(e); break; }
+  }
+  box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+lastErr+'<br><span style="color:#9696ac;font-size:13px">几个模型都没免费额度 → 多半是这个 Google 项目没开免费层/需绑结算，或你所在区域不支持。可换个 Google 账号重拿 key。</span>';
 };
 refreshKeyUI();
 </script>
