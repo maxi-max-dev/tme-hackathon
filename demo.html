@@ -71,6 +71,10 @@
   .note b{color:var(--text);}
   .roadmap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px;font-size:13px;color:var(--muted);}
   .roadmap b{color:var(--text);}
+  .hint{color:var(--muted);font-size:13px;}
+  .aicap{display:none;margin-top:14px;background:linear-gradient(180deg,rgba(124,108,255,.1),rgba(124,108,255,.03));border:1px solid rgba(124,108,255,.4);border-radius:14px;padding:16px 18px;font-size:15.5px;line-height:1.85;color:#fff;}
+  .aicap.show{display:block;animation:fade .4s ease;}
+  .aicap .tag{font-size:12px;color:var(--accent2);font-weight:700;letter-spacing:.08em;margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -126,9 +130,14 @@
     <div class="transport">
       <button class="iconbtn" id="playBtn">▶</button>
       <div class="seek" id="seek"><i></i></div>
-      <label class="toggle"><input type="checkbox" id="capToggle" checked> AI 解说字幕</label>
+      <label class="toggle"><input type="checkbox" id="capToggle" checked> 实时字幕</label>
     </div>
-    <div class="btnrow"><button class="btn ghost" id="backTo1">← 换首歌</button></div>
+    <div id="aiCaption" class="aicap"></div>
+    <div class="btnrow">
+      <button class="btn" id="captionBtn">✦ 让 AI 解说这首歌</button>
+      <button class="btn ghost" id="backTo1">← 换首歌</button>
+    </div>
+    <div class="hint" id="captionHint" style="margin-top:8px">用 Gemini「读懂」这首歌、写成一段聋人也能看懂的文字（需先按 worker/README 配置后端）。</div>
   </div>
 
   <div class="note">
@@ -154,6 +163,8 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const midi=m=>440*Math.pow(2,(m-69)/12);
 
 let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null, selectedSong=null;
+let rawAudioBytes=null, rawAudioMime='audio/mpeg';
+let CAPTION_API=localStorage.getItem('seeCaptionApi')||'';
 let songEssence=null, essMoodStr='';
 let _beatPtr=0, _lastE=0;
 const SAMPLE_PROFILE={warmth:.6,energy:.5,structure:.4,density:.5};
@@ -216,8 +227,10 @@ fileInput.onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
 ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 drop.addEventListener('dragleave',e=>{e.preventDefault();drop.classList.remove('over');});
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
-async function ingest(name,arrBuf){
+async function ingest(name,arrBuf,mime){
   const setS=t=>{ $('#dropsub').textContent=t; };
+  rawAudioBytes=new Uint8Array(arrBuf.slice(0)); rawAudioMime=mime||'audio/mpeg';
+  const ab2=$('#aiCaption'); if(ab2){ ab2.classList.remove('show'); ab2.innerHTML=''; }
   setS('正在解码 '+name+' …');
   audioBuffer=await actx.decodeAudioData(arrBuf);
   fileDur=audioBuffer.duration; fileName=name; mode='file';
@@ -232,12 +245,12 @@ async function ingest(name,arrBuf){
 }
 function handleFile(file){
   stopAudio(); initAudio();
-  file.arrayBuffer().then(b=>ingest(file.name,b)).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
+  file.arrayBuffer().then(b=>ingest(file.name,b,file.type||'audio/mpeg')).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
 }
 function loadBuiltin(url,name){
   stopAudio(); initAudio();
   $('#dropsub').textContent='正在载入 '+name+' …';
-  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(b=>ingest(name,b)).catch(err=>{ $('#dropsub').textContent='载入失败：'+((err&&err.message)||err); });
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(b=>ingest(name,b,'audio/mpeg')).catch(err=>{ $('#dropsub').textContent='载入失败：'+((err&&err.message)||err); });
 }
 
 /* ---------- 样曲 ---------- */
@@ -361,6 +374,21 @@ requestAnimationFrame(frame);
 /* ---------- 控制 ---------- */
 $('#playBtn').onclick=()=>{ if(playing)stopAudio(); else startAudio(); };
 window.addEventListener('resize',()=>{ if(engMain)engMain.resize(); });
+
+/* ---------- AI 解说（Gemini，经你的 Cloudflare Worker；key 不经过前端） ---------- */
+function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C) s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
+$('#captionBtn').onclick=async()=>{
+  if(!rawAudioBytes){ $('#captionHint').textContent='先选一首歌或上传文件'; return; }
+  if(!CAPTION_API){ const u=prompt('粘贴你的 Worker 网址（不是 key，是 https://xxx.workers.dev）：'); if(!u)return; CAPTION_API=u.trim(); localStorage.setItem('seeCaptionApi',CAPTION_API); }
+  const box=$('#aiCaption'); box.classList.add('show'); box.innerHTML='<div class="tag">AI 解说 · 生成中…</div>正在听这首歌、写解说（约几秒）…';
+  $('#captionHint').textContent='';
+  try{
+    const r=await fetch(CAPTION_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio:u8ToB64(rawAudioBytes),mime:rawAudioMime})});
+    const j=await r.json().catch(()=>({error:'返回不是 JSON（网址对吗？）'}));
+    if(!r.ok||j.error){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+(j.error||('HTTP '+r.status))+'<br><span style="color:#9696ac;font-size:13px">检查：Worker 部署了吗？GEMINI_KEY 设了吗？详见 worker/README。</span>'; return; }
+    box.innerHTML='<div class="tag">AI 解说 · Gemini</div>'+(j.text||'(空)');
+  }catch(e){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+String(e)+'<br><span style="color:#9696ac;font-size:13px">网址对不对？Worker 部署了吗？</span>'; }
+};
 </script>
 
 <!-- CLAP（向量路）：浏览器内跑 CLAP，零 key、不上传 -->

@@ -1,0 +1,8 @@
+{
+  // 可选：如果你以后想用命令行部署（npx wrangler deploy）
+  "name": "see-caption",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-16"
+  // GEMINI_KEY 不写在这里。用：npx wrangler secret put GEMINI_KEY
+  // 或在 Cloudflare 面板里加密文变量（见 README）
+}
