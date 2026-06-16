@@ -95,17 +95,19 @@
   <!-- STEP 1: 上传 -->
   <div class="panel active" data-p="1">
     <div class="sectit">① 上传你想"看见"的歌</div>
-    <p class="sectsub">任何一首歌都行 —— AI 会在<strong style="color:#fff">你的浏览器里</strong>先把整首歌分析完（声学起伏 + CLAP 气质），再呈现（不上传服务器、不碰版权）。也可以先用内置样曲试试。</p>
+    <p class="sectsub">任何一首歌都行 —— AI 会在<strong style="color:#fff">你的浏览器里</strong>先把整首歌分析完（声学起伏 + CLAP 气质），再呈现（不上传服务器）。没有文件？下面这几首内置曲子气质迥异，正好看 AI 怎么区别对待。</p>
     <label class="drop" id="drop">
       <input type="file" id="fileInput" accept="audio/*" hidden>
       <div class="dropico">⬆</div>
       <div class="droptit">点这里上传音频，或把文件拖进来</div>
       <div class="dropsub" id="dropsub">支持 mp3 / wav / m4a / ogg … 全程在本机处理，不上传</div>
     </label>
-    <div class="or">没有文件？试试内置合成样曲</div>
-    <div style="display:grid;gap:11px;max-width:640px">
-      <div class="scard" data-song="rain"><div class="ico" style="background:rgba(99,102,241,.18)">🌧️</div><div><h3>雨夜独白</h3><p>合成样曲 · 孤独 → 渴望 → 爆发 → 释然</p></div></div>
-      <div class="scard" data-song="dawn"><div class="ico" style="background:rgba(251,191,36,.18)">🌅</div><div><h3>破晓</h3><p>合成样曲 · 静谧 → 萌动 → 明亮 → 开阔</p></div></div>
+    <div class="or">或者，直接听这几首气质迥异的内置曲子</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px">
+      <div class="scard" data-url="assets/calm.mp3" data-name="Ethereal Relaxation · 空灵平静"><div class="ico" style="background:rgba(99,102,241,.18)">🌌</div><div><h3>空灵 · 平静</h3><p>Ethereal Relaxation — 梦幻 / 留白 / 慢</p></div></div>
+      <div class="scard" data-url="assets/dark.mp3" data-name="Darkest Child · 黑暗紧张"><div class="ico" style="background:rgba(192,107,255,.18)">🌑</div><div><h3>黑暗 · 紧张</h3><p>Darkest Child — 阴郁 / 悬疑 / 渐强</p></div></div>
+      <div class="scard" data-url="assets/epic.mp3" data-name="Heroic Age · 史诗激昂"><div class="ico" style="background:rgba(251,191,36,.18)">⚔️</div><div><h3>史诗 · 激昂</h3><p>Heroic Age — 宏大 / 鼓点 / 向上</p></div></div>
+      <div class="scard" data-url="assets/happy.mp3" data-name="Carefree · 轻快明亮"><div class="ico" style="background:rgba(52,211,153,.18)">🎈</div><div><h3>轻快 · 明亮</h3><p>Carefree — 跳跃 / 温暖 / 俏皮</p></div></div>
     </div>
   </div>
 
@@ -130,7 +132,7 @@
   </div>
 
   <div class="note">
-    <b>关于这个 Demo（诚实说明）：</b>上传的歌全在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏 + 提取拍点，按本曲归一化），再用 <b>CLAP（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出"气质向量"。呈现借鉴<b>音游语法</b>：拍点提前飞向中心、精确命中、炸开冲击波——让节奏被"身体感"到，而不只是看个热闹。<b>诚实的局限</b>：把"气质"变成"真正对味的画面"仍是开放难题，这版是朝那走的一步。详见<a href="index.html">可行性报告</a>。
+    <b>关于这个 Demo（诚实说明）：</b>上传的歌全在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏 + 提取拍点，按本曲归一化），再用 <b>CLAP（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出"气质向量"。呈现借鉴<b>音游语法</b>：拍点提前飞向中心、精确命中、炸开冲击波——让节奏被"身体感"到，而不只是看个热闹。<b>诚实的局限</b>：把"气质"变成"真正对味的画面"仍是开放难题，这版是朝那走的一步。详见<a href="index.html">可行性报告</a>。<br>内置曲目：Kevin MacLeod (incompetech.com)，授权 CC-BY 4.0。
   </div>
   <div class="roadmap">
     <b>Roadmap（收进来、之后做）：</b>
@@ -214,28 +216,32 @@ fileInput.onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
 ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 drop.addEventListener('dragleave',e=>{e.preventDefault();drop.classList.remove('over');});
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+async function ingest(name,arrBuf){
+  const setS=t=>{ $('#dropsub').textContent=t; };
+  setS('正在解码 '+name+' …');
+  audioBuffer=await actx.decodeAudioData(arrBuf);
+  fileDur=audioBuffer.duration; fileName=name; mode='file';
+  setS('正在分析整首歌（声学起伏 + 拍点，在本机）…');
+  fileTL=await analyzeBuffer(audioBuffer);
+  setS('AI 正在用 CLAP 读这首歌的"气质"（首次需下载模型，约 10–30 秒，全在本机）…');
+  songEssence=null; essMoodStr='';
+  try{ songEssence=await extractEssence(audioBuffer); essMoodStr=essenceMood(songEssence); }catch(e){ songEssence=null; }
+  setS('✓ '+name+'（'+Math.round(audioBuffer.duration)+'s）'+(essMoodStr?' · 气质：'+essMoodStr:' · 已分析'));
+  $('#mainBadge').textContent=name+(essMoodStr?'　·　气质 '+essMoodStr:'');
+  goStep(2);
+}
 function handleFile(file){
   stopAudio(); initAudio();
-  $('#dropsub').textContent='正在解码 '+file.name+' …';
-  file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(async ab=>{
-    $('#dropsub').textContent='正在分析整首歌（声学起伏 + 拍点，在本机）…';
-    audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
-    fileTL=await analyzeBuffer(ab);
-    $('#dropsub').textContent='AI 正在用 CLAP 读这首歌的"气质"（首次需下载模型，约 10–30 秒，全在本机）…';
-    songEssence=null; essMoodStr='';
-    try{ songEssence=await extractEssence(ab); essMoodStr=essenceMood(songEssence); }catch(e){ songEssence=null; }
-    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）'+(essMoodStr?' · 气质：'+essMoodStr:' · 已分析');
-    $('#mainBadge').textContent=file.name+(essMoodStr?'　·　气质 '+essMoodStr:'');
-    goStep(2);
-  }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
+  file.arrayBuffer().then(b=>ingest(file.name,b)).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
+}
+function loadBuiltin(url,name){
+  stopAudio(); initAudio();
+  $('#dropsub').textContent='正在载入 '+name+' …';
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(b=>ingest(name,b)).catch(err=>{ $('#dropsub').textContent='载入失败：'+((err&&err.message)||err); });
 }
 
 /* ---------- 样曲 ---------- */
-$$('.scard').forEach(c=>c.onclick=()=>{
-  stopAudio(); selectedSong=c.dataset.song; mode='synth'; songEssence=null; essMoodStr='';
-  $('#mainBadge').textContent=(c.dataset.song==='rain'?'雨夜独白':'破晓')+'（合成样曲）';
-  goStep(2);
-});
+$$('.scard').forEach(c=>c.onclick=()=>loadBuiltin(c.dataset.url,c.dataset.name));
 $('#backTo1').onclick=()=>{ stopAudio(); goStep(1); };
 
 /* ---------- 步骤 ---------- */
@@ -260,7 +266,7 @@ function avoice(freq,t,dur,gain,type){ const o=actx.createOscillator(),g=actx.cr
 function akick(t){ const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g);g.connect(master);o.start(t);o.stop(t+.2); }
 let lastSecT=-1;
 function scheduler(){ const ahead=.12,step=(60/96)/4; while(nextNote<actx.currentTime+ahead){ const dur=SONGS[curSong].dur;let e=(nextNote-startTime)%dur;if(e<0)e+=dur; const sec=sectionAt(curSong,e),tones=sec.chord,int=sec.int,val=sec.val; busFilter.frequency.setTargetAtTime(500+val*4200+int*1800,nextNote,.05); if(sec.t!==lastSecT){lastSecT=sec.t;tones.slice(0,4).forEach(m=>avoice(midi(m-12),nextNote,3.4,.045,'sine'));} const play=int<.32?(step16%4===0):int<.62?(step16%2===0):true; if(play){let m=tones[step16%tones.length];if(int>.8&&step16%2===0)m+=12;avoice(midi(m),nextNote,int<.5?.5:.32,.11+int*.05,'triangle');if(int>.7)avoice(midi(m+7),nextNote,.22,.04,'sine');} if(int>.55&&step16%4===0)akick(nextNote); nextNote+=step;step16++; } }
-function startSynth(){ curSong=selectedSong;lastSecT=-1;step16=0;startTime=actx.currentTime+.06;nextNote=startTime;schedTimer=setInterval(scheduler,25); }
+function startSynth(){ if(!selectedSong||!SONGS[selectedSong])return; curSong=selectedSong;lastSecT=-1;step16=0;startTime=actx.currentTime+.06;nextNote=startTime;schedTimer=setInterval(scheduler,25); }
 function startFile(){ fileSource=actx.createBufferSource();fileSource.buffer=audioBuffer;fileSource.loop=true;fileSource.connect(master);startTime=actx.currentTime+.04;fileSource.start(startTime); }
 function setIcons(s){ const a=$('#playBtn'); if(a)a.textContent=s; }
 function startAudio(){ stopAudio(); initAudio(); if(actx.state==='suspended')actx.resume(); _beatPtr=0;_lastE=0; if(mode==='file'&&audioBuffer)startFile(); else startSynth(); playing=true; setIcons('⏸'); }
