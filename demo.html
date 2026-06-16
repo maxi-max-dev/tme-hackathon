@@ -4,18 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>声画像 · Demo｜让音乐被"看见"</title>
-<meta name="description" content="给听障者的个性化音乐之门 — 概念 Demo。上传任意一首歌，AI 学会你怎么感知世界，把它生成只属于你的抽象影像。">
+<meta name="description" content="上传任意一首歌，AI 在本机听懂它的气质，用音游式的节奏呈现把它变成你能'看见'的抽象影像。">
 <style>
   :root{
-    --bg:#0c0c11; --bg2:#14141c; --card:#181820; --line:#2a2a37;
-    --text:#ececf3; --muted:#9696ac; --accent:#7c6cff; --accent2:#c06bff;
-    --green:#34d399; --amber:#fbbf24; --radius:16px;
+    --bg:#0c0c11;--bg2:#14141c;--card:#181820;--line:#2a2a37;
+    --text:#ececf3;--muted:#9696ac;--accent:#7c6cff;--accent2:#c06bff;--green:#34d399;--amber:#fbbf24;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;height:100%;}
   body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
   a{color:var(--accent2);text-decoration:none;}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 70px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 70px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 0 10px;flex-wrap:wrap;}
   .brand{font-weight:800;font-size:18px;}
   .brand .dot{color:var(--accent2);}
@@ -24,7 +23,7 @@
   .hero{padding:26px 0 8px;}
   .eyebrow{display:inline-block;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent2);font-weight:700;border:1px solid rgba(192,107,255,.35);border-radius:999px;padding:4px 12px;background:rgba(192,107,255,.08);margin-bottom:14px;}
   h1{font-size:clamp(26px,4.5vw,40px);line-height:1.16;margin:0 0 10px;font-weight:800;background:linear-gradient(90deg,#fff,#d7ccff);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .hero p{color:var(--muted);max-width:640px;margin:0;font-size:16px;}
+  .hero p{color:var(--muted);max-width:660px;margin:0;font-size:16px;}
   .steps{display:flex;gap:8px;margin:26px 0 10px;flex-wrap:wrap;}
   .stp{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px;}
   .stp .b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);border:1px solid var(--line);}
@@ -36,51 +35,31 @@
   @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
   .sectit{font-size:20px;font-weight:800;margin:24px 0 4px;}
   .sectsub{color:var(--muted);font-size:14.5px;margin:0 0 18px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;}
-  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:.16s;}
-  .pcard:hover{border-color:var(--accent);transform:translateY(-2px);}
-  .pcard.sel{border-color:var(--accent2);background:rgba(124,108,255,.10);box-shadow:0 14px 34px -20px var(--accent);}
-  .pcard .emo{font-size:26px;}
-  .pcard h3{margin:8px 0 4px;font-size:16px;}
-  .pcard p{margin:0;color:var(--muted);font-size:13px;}
-  .or{text-align:center;color:var(--muted);font-size:13px;margin:18px 0;position:relative;}
-  .or::before,.or::after{content:"";position:absolute;top:50%;width:34%;height:1px;background:var(--line);}
+  .or{text-align:center;color:var(--muted);font-size:13px;margin:18px 0;position:relative;max-width:640px;}
+  .or::before,.or::after{content:"";position:absolute;top:50%;width:32%;height:1px;background:var(--line);}
   .or::before{left:0;} .or::after{right:0;}
-  textarea{width:100%;min-height:96px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;color:var(--text);padding:14px 16px;font-family:inherit;font-size:14.5px;line-height:1.6;resize:vertical;}
-  textarea:focus{outline:none;border-color:var(--accent);}
-  .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;border:2px dashed var(--line);border-radius:16px;padding:34px 20px;cursor:pointer;transition:.16s;background:var(--card);max-width:640px;}
+  .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;border:2px dashed var(--line);border-radius:16px;padding:40px 20px;cursor:pointer;transition:.16s;background:var(--card);max-width:640px;}
   .drop:hover,.drop.over{border-color:var(--accent2);background:rgba(124,108,255,.08);transform:translateY(-2px);}
-  .dropico{font-size:30px;}
+  .dropico{font-size:32px;}
   .droptit{font-weight:700;font-size:16px;}
-  .dropsub{color:var(--muted);font-size:12.5px;}
-  .btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:11px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit;}
-  .btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
-  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none;}
-  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
-  .btn.ghost:hover{border-color:var(--accent);}
-  .btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center;}
-  .readout{background:var(--card);border:1px solid rgba(124,108,255,.35);border-radius:14px;padding:18px 20px;margin-top:20px;display:none;}
-  .readout.show{display:block;animation:fade .4s ease;}
-  .readout .who{font-size:15px;margin:0 0 14px;}
-  .readout .who b{color:var(--accent2);}
-  .dim{margin:11px 0;}
-  .dim .lab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:5px;}
-  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;}
-  .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .7s cubic-bezier(.2,.8,.2,1);}
+  .dropsub{color:var(--muted);font-size:12.5px;max-width:420px;}
   .scard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;cursor:pointer;transition:.16s;display:flex;gap:14px;align-items:center;}
   .scard:hover{border-color:var(--accent);transform:translateY(-2px);}
-  .scard.sel{border-color:var(--accent2);background:rgba(124,108,255,.10);}
   .scard .ico{width:46px;height:46px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;font-size:22px;}
   .scard h3{margin:0 0 3px;font-size:15.5px;}
   .scard p{margin:0;color:var(--muted);font-size:12.5px;}
-  .stage{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#000;}
-  .stage.single{aspect-ratio:16/9;}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:11px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit;}
+  .btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn.ghost:hover{border-color:var(--accent);}
+  .btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center;}
+  .stage{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;}
   canvas{display:block;width:100%;height:100%;}
   .capwrap{position:absolute;left:0;right:0;bottom:0;padding:46px 22px 18px;background:linear-gradient(0deg,rgba(0,0,0,.72),transparent);pointer-events:none;}
   .moodtag{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:#fff;background:rgba(124,108,255,.32);border:1px solid rgba(192,107,255,.5);border-radius:999px;padding:3px 12px;margin-bottom:9px;backdrop-filter:blur(6px);}
   .moodtag .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
   .caption{font-size:clamp(15px,2vw,19px);color:#fff;font-weight:600;text-shadow:0 2px 12px rgba(0,0,0,.6);max-width:760px;min-height:1.6em;transition:opacity .35s;}
-  .topbadge{position:absolute;top:14px;left:14px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;backdrop-filter:blur(6px);max-width:62%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbadge{position:absolute;top:14px;left:14px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;backdrop-filter:blur(6px);max-width:64%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .transport{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;}
   .iconbtn{width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;flex:0 0 auto;}
   .iconbtn:hover{filter:brightness(1.1);}
@@ -88,16 +67,10 @@
   .toggle input{accent-color:var(--accent);width:16px;height:16px;}
   .seek{flex:1;min-width:140px;height:6px;border-radius:99px;background:rgba(255,255,255,.08);position:relative;overflow:hidden;}
   .seek i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;}
-  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  .splitcell{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:1/1;}
-  .splitlabel{position:absolute;top:12px;left:12px;font-size:12.5px;font-weight:700;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 13px;backdrop-filter:blur(6px);z-index:2;}
-  .splitlabel.you{background:rgba(124,108,255,.35);border-color:rgba(192,107,255,.6);}
-  @media(max-width:640px){.split{grid-template-columns:1fr;}}
   .note{background:rgba(251,191,36,.07);border-left:3px solid var(--amber);border-radius:0 12px 12px 0;padding:13px 16px;margin-top:26px;font-size:13px;color:var(--muted);}
   .note b{color:var(--text);}
   .roadmap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px;font-size:13px;color:var(--muted);}
   .roadmap b{color:var(--text);}
-  .hint{color:var(--muted);font-size:13px;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -110,42 +83,19 @@
 
   <div class="hero">
     <span class="eyebrow">概念 Demo · 让音乐被"看见"</span>
-    <h1>同一首歌，不同的人，看见不一样的它</h1>
-    <p>AI 先学会"你"怎么感知世界，再把<strong style="color:#fff">任意一首歌</strong>翻译成一段只属于你的抽象影像。它不告诉你这歌"什么意思"，它给你一扇能走进去的门。</p>
+    <h1>把一首歌，变成你能看见的样子</h1>
+    <p>上传任意一首歌 → AI 在<strong style="color:#fff">你的浏览器里</strong>听懂它的"气质"（CLAP），再用<strong style="color:#fff">音游式的节奏呈现</strong>（预拍飞入 → 锁拍命中 → 冲击波）让你<strong style="color:#fff">看见、感受到</strong>它。</p>
   </div>
 
   <div class="steps">
-    <div class="stp on" data-s="1"><span class="b">1</span>建感知画像</div>
-    <div class="stp" data-s="2"><span class="b">2</span>上传一首歌</div>
-    <div class="stp" data-s="3"><span class="b">3</span>看见</div>
-    <div class="stp" data-s="4"><span class="b">4</span>对照</div>
+    <div class="stp on" data-s="1"><span class="b">1</span>上传一首歌</div>
+    <div class="stp" data-s="2"><span class="b">2</span>看见</div>
   </div>
 
-  <!-- STEP 1 -->
+  <!-- STEP 1: 上传 -->
   <div class="panel active" data-p="1">
-    <div class="sectit">① 你是谁？AI 想先认识你</div>
-    <p class="sectsub">选一个最像你的，或用自己的话写几句，AI 据此建一个「感知画像」。<span style="color:#c7bcff">（真实产品里这一步可由你的<b>听歌历史</b>自动完成——TME 有这些数据；demo 里先由你来说。）</span></p>
-    <div class="grid" id="personas"></div>
-    <div class="or">或者，用你自己的话</div>
-    <textarea id="freetext" placeholder="比如：我是个安静的人，喜欢下雨天，怕吵，偏爱蓝色和留白……（写什么都行，AI 会读你）"></textarea>
-    <div class="btnrow">
-      <button class="btn" id="buildBtn">建立我的感知画像 →</button>
-      <span class="hint" id="step1hint">先选一个画像，或写点东西</span>
-    </div>
-    <div class="readout" id="readout">
-      <p class="who" id="whoLine"></p>
-      <div class="dim"><div class="lab"><span>冷 ⟷ 暖</span><span id="t-warmth"></span></div><div class="bar"><i id="b-warmth"></i></div></div>
-      <div class="dim"><div class="lab"><span>静 ⟷ 动</span><span id="t-energy"></span></div><div class="bar"><i id="b-energy"></i></div></div>
-      <div class="dim"><div class="lab"><span>流动 ⟷ 几何</span><span id="t-structure"></span></div><div class="bar"><i id="b-structure"></i></div></div>
-      <div class="dim"><div class="lab"><span>留白 ⟷ 繁密</span><span id="t-density"></span></div><div class="bar"><i id="b-density"></i></div></div>
-      <div class="btnrow"><button class="btn" id="toSong">下一步：上传一首歌 →</button></div>
-    </div>
-  </div>
-
-  <!-- STEP 2 -->
-  <div class="panel" data-p="2">
-    <div class="sectit">② 上传你想"看见"的歌</div>
-    <p class="sectsub">任何一首歌都行 —— AI 会在<strong style="color:#fff">你的浏览器里先把整首歌分析完</strong>，再播放（不上传服务器、不碰版权）。也可以先用内置样曲试试。</p>
+    <div class="sectit">① 上传你想"看见"的歌</div>
+    <p class="sectsub">任何一首歌都行 —— AI 会在<strong style="color:#fff">你的浏览器里</strong>先把整首歌分析完（声学起伏 + CLAP 气质），再呈现（不上传服务器、不碰版权）。也可以先用内置样曲试试。</p>
     <label class="drop" id="drop">
       <input type="file" id="fileInput" accept="audio/*" hidden>
       <div class="dropico">⬆</div>
@@ -154,28 +104,21 @@
     </label>
     <div class="or">没有文件？试试内置合成样曲</div>
     <div style="display:grid;gap:11px;max-width:640px">
-      <div class="scard" data-song="rain">
-        <div class="ico" style="background:rgba(99,102,241,.18)">🌧️</div>
-        <div><h3>雨夜独白</h3><p>合成样曲 · 孤独 → 渴望 → 爆发 → 释然（含预写语义解说）</p></div>
-      </div>
-      <div class="scard" data-song="dawn">
-        <div class="ico" style="background:rgba(251,191,36,.18)">🌅</div>
-        <div><h3>破晓</h3><p>合成样曲 · 静谧 → 萌动 → 明亮 → 开阔（含预写语义解说）</p></div>
-      </div>
+      <div class="scard" data-song="rain"><div class="ico" style="background:rgba(99,102,241,.18)">🌧️</div><div><h3>雨夜独白</h3><p>合成样曲 · 孤独 → 渴望 → 爆发 → 释然</p></div></div>
+      <div class="scard" data-song="dawn"><div class="ico" style="background:rgba(251,191,36,.18)">🌅</div><div><h3>破晓</h3><p>合成样曲 · 静谧 → 萌动 → 明亮 → 开阔</p></div></div>
     </div>
-    <div class="btnrow"><button class="btn ghost" id="backTo1">← 改画像</button></div>
   </div>
 
-  <!-- STEP 3 -->
-  <div class="panel" data-p="3">
-    <div class="sectit">③ 看见这首歌</div>
-    <p class="sectsub">下面这段抽象影像 = <strong style="color:#fff">CLAP 读出的这首歌"气质"</strong>（定画面的魂）+ 实时声学起伏（定动）+ <strong style="color:#fff">你的感知画像</strong>（叠一层）。同一首歌、不同的人，看见不一样的它。</p>
-    <div class="stage single">
+  <!-- STEP 2: 看见 -->
+  <div class="panel" data-p="2">
+    <div class="sectit">② 看见这首歌</div>
+    <p class="sectsub">画面 = <strong style="color:#fff">CLAP 读出的气质</strong>（定色彩与"世界"）+ <strong style="color:#fff">音游式节奏呈现</strong>（拍点提前飞向中心、精确命中、炸开冲击波）。试着<strong style="color:#fff">盯着中心</strong>——你会"看到"节拍来、命中。</p>
+    <div class="stage">
       <canvas id="mainCanvas"></canvas>
-      <div class="topbadge" id="mainBadge">你的视角</div>
+      <div class="topbadge" id="mainBadge">—</div>
       <div class="capwrap">
         <div class="moodtag"><span class="pulse"></span><span id="moodText">—</span></div>
-        <div class="caption" id="capText">按播放，让 AI 开始解说</div>
+        <div class="caption" id="capText">按播放，让 AI 开始呈现</div>
       </div>
     </div>
     <div class="transport">
@@ -183,44 +126,20 @@
       <div class="seek" id="seek"><i></i></div>
       <label class="toggle"><input type="checkbox" id="capToggle" checked> AI 解说字幕</label>
     </div>
-    <div class="btnrow">
-      <button class="btn" id="toSplit">▶ 对照：换个人看同一首歌 →</button>
-      <button class="btn ghost" id="backTo2">← 换首歌</button>
-    </div>
-  </div>
-
-  <!-- STEP 4 -->
-  <div class="panel" data-p="4">
-    <div class="sectit">④ 对照：主观性，被做成了产品</div>
-    <p class="sectsub">同一首歌、同一刻，左边是「默认抽象」（谁都一样），右边是<strong style="color:#fff">为你定制</strong>的。差别不是换了套配色——是两个人，两种"看见"的方式。</p>
-    <div class="split">
-      <div class="splitcell"><div class="splitlabel">默认 · 谁都一样</div><canvas id="canvasDefault"></canvas></div>
-      <div class="splitcell"><div class="splitlabel you" id="youLabel">你 · 专属</div><canvas id="canvasYou"></canvas></div>
-    </div>
-    <div class="capwrap" style="position:relative;background:none;padding:14px 2px 0">
-      <div class="moodtag"><span class="pulse"></span><span id="moodText2">—</span></div>
-      <div class="caption" id="capText2" style="color:var(--text)"></div>
-    </div>
-    <div class="transport">
-      <button class="iconbtn" id="playBtn2">▶</button>
-      <div class="seek" id="seek2"><i></i></div>
-    </div>
-    <div class="btnrow">
-      <button class="btn ghost" id="backTo3">← 回到单视角</button>
-      <button class="btn ghost" id="restart">↺ 换个画像重来</button>
-    </div>
+    <div class="btnrow"><button class="btn ghost" id="backTo1">← 换首歌</button></div>
   </div>
 
   <div class="note">
-    <b>关于这个 Demo（诚实说明）：</b>上传的歌在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏，按本曲归一化），再用 <b>CLAP 模型（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出这首歌的"气质向量"（温暖/紧张/明亮/有力/梦幻/繁密 6 轴）。<b>气质定画面的"魂"、信号定逐帧的"动"、你的画像再叠一层</b>——所以同一首歌、不同的人，看见不一样的它。<b>诚实的局限</b>：CLAP 气质是零样本、较粗；把"气质"变成"真正对味的画面"（呈现端）仍是开放难题，也是继续打磨的方向。详见<a href="index.html">可行性报告</a>。
+    <b>关于这个 Demo（诚实说明）：</b>上传的歌全在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏 + 提取拍点，按本曲归一化），再用 <b>CLAP（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出"气质向量"。呈现借鉴<b>音游语法</b>：拍点提前飞向中心、精确命中、炸开冲击波——让节奏被"身体感"到，而不只是看个热闹。<b>诚实的局限</b>：把"气质"变成"真正对味的画面"仍是开放难题，这版是朝那走的一步。详见<a href="index.html">可行性报告</a>。
   </div>
   <div class="roadmap">
-    <b>Roadmap：</b>
-    ✅ 已接 <b>CLAP</b>（音频→气质向量，on-device，零 key）；
-    ① 呈现端再升级：把"气质"映射成更对味的画面（分段气质 + 更强的生成视觉）；
-    ② <b>带词 / 纯器乐分两种模式</b>——带词走"AI-MV 式"易懂表达，纯器乐走真正的抽象；
-    ③ 按<b>听歌历史</b>自动建画像（真实产品由 TME 数据驱动，无需自己描述）；
-    ④ 实时（边听边生成）。
+    <b>Roadmap（收进来、之后做）：</b>
+    ✅ CLAP 气质提取（on-device）｜✅ 音游式节奏呈现；
+    ① 呈现端再升级（分段气质 + 生成式视觉，让画面更"对味"）；
+    ② 个性化「感知画像」＋「同曲不同人」对照（先收起来）；
+    ③ 带词 / 纯器乐分两种模式（带词走 AI-MV，器乐走抽象）；
+    ④ 按听歌历史自动建画像（真实产品由 TME 数据驱动）；
+    ⑤ 实时（边听边生成）。
   </div>
 
 </div>
@@ -232,135 +151,41 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,t)=>a+(b-a)*t;
 const midi=m=>440*Math.pow(2,(m-69)/12);
 
-/* ---------- 画像 ---------- */
-const PERSONAS={
-  poet:{emo:'🪶',label:'感性的诗人',desc:'情绪丰沛、偏爱意象与流动',p:{warmth:.85,energy:.4,structure:.15,density:.55}},
-  engineer:{emo:'📐',label:'理性的工程师',desc:'冷静、偏爱秩序与几何',p:{warmth:.2,energy:.5,structure:.9,density:.5}},
-  child:{emo:'🎈',label:'活泼的小孩',desc:'明亮、跳跃、停不下来',p:{warmth:.9,energy:.92,structure:.2,density:.85}},
-  observer:{emo:'🌫️',label:'内敛的观察者',desc:'安静、留白、慢',p:{warmth:.45,energy:.18,structure:.5,density:.28}},
-};
-const DEFAULT_PROFILE={warmth:.5,energy:.5,structure:.5,density:.5,neutral:true};
-const KW={
-  warmth:{pos:['暖','温','爱','热','阳光','红','橙','金','情','家','亮','热情','温柔','心'],neg:['冷','蓝','黑','理性','逻辑','机器','疏离','距离','灰','寒','孤']},
-  energy:{pos:['跳','快','闹','动','激','活泼','兴奋','热闹','奔','冲','嗨','疯'],neg:['静','慢','安','沉','累','平','缓','淡','困','宅','懒']},
-  structure:{pos:['逻辑','秩序','规则','工程','数学','几何','理性','结构','精确','代码','严谨'],neg:['自由','随性','感性','流动','梦','乱','飘','散','野','即兴','随意']},
-  density:{pos:['多','满','热闹','丰富','复杂','繁','拥挤','密'],neg:['简','少','空','独','留白','单','疏','清','淡','一个人']},
-};
-function profileFromText(t){
-  const p={warmth:.5,energy:.5,structure:.5,density:.5};
-  for(const k in KW){ for(const w of KW[k].pos) if(t.includes(w)) p[k]+=.12; for(const w of KW[k].neg) if(t.includes(w)) p[k]-=.12; p[k]=clamp(p[k],.05,.95); }
-  return p;
-}
-function describe(p){
-  const seg=(v,lo,mid,hi)=>v>.62?hi:v<.38?lo:mid;
-  return [seg(p.warmth,'偏冷、克制','冷暖之间','偏暖、有温度'),seg(p.energy,'安静、慢','收放有度','跳跃、停不下来'),seg(p.structure,'流动、随性','半流动半秩序','偏爱秩序与几何'),seg(p.density,'喜欢留白','疏密相宜','偏好繁密丰富')].join(' · ');
-}
-let profile=null, profileName='', selectedSong=null;
-let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null;
+let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null, selectedSong=null;
+let songEssence=null, essMoodStr='';
+let _beatPtr=0, _lastE=0;
+const SAMPLE_PROFILE={warmth:.6,energy:.5,structure:.4,density:.5};
 
-/* ---------- 画像卡 ---------- */
-const pc=$('#personas');
-Object.entries(PERSONAS).forEach(([k,v])=>{
-  const el=document.createElement('div'); el.className='pcard'; el.dataset.k=k;
-  el.innerHTML=`<div class="emo">${v.emo}</div><h3>${v.label}</h3><p>${v.desc}</p>`;
-  el.onclick=()=>{ $$('.pcard').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); $('#freetext').value=''; $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"看 AI 怎么读你'; };
-  pc.appendChild(el);
-});
-$('#freetext').addEventListener('input',e=>{ if(e.target.value.trim()){ $$('.pcard').forEach(c=>c.classList.remove('sel')); $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"，AI 现场分析你写的'; } });
-$('#buildBtn').disabled=true;
-$('#buildBtn').onclick=()=>{
-  const sel=$('.pcard.sel'), txt=$('#freetext').value.trim();
-  if(sel){ const k=sel.dataset.k; profile={...PERSONAS[k].p}; profileName=PERSONAS[k].label; }
-  else if(txt){ profile=profileFromText(txt); profileName='你'; } else return;
-  $('#whoLine').innerHTML=`AI 读到的<b>${profileName==='你'?'你':profileName}</b>：${describe(profile)}`;
-  const set=(k)=>{ const pct=Math.round(profile[k]*100); $('#b-'+k).style.width=pct+'%'; $('#t-'+k).textContent=pct+'%'; };
-  ['warmth','energy','structure','density'].forEach(set);
-  $('#readout').classList.add('show'); $('#youLabel').textContent=(profileName==='你'?'你':profileName)+' · 专属';
-};
-$('#toSong').onclick=()=>goStep(2);
-$('#backTo1').onclick=()=>goStep(1);
-$('#backTo2').onclick=()=>{stopAudio();goStep(2);};
-$('#backTo3').onclick=()=>{stopAudio();goStep(3);};
-$('#restart').onclick=()=>{stopAudio();goStep(1);};
-
-/* ---------- 样曲 ---------- */
-$$('.scard').forEach(c=>c.onclick=()=>{
-  stopAudio(); $$('.scard').forEach(x=>x.classList.remove('sel')); c.classList.add('sel');
-  selectedSong=c.dataset.song; mode='synth'; songEssence=null; essMoodStr=''; $('#mainBadge').textContent='你的视角';
-  setTimeout(()=>goStep(3),180);
-});
-
-/* ---------- 上传 + 整首预分析 ---------- */
-const drop=$('#drop'), fileInput=$('#fileInput');
-fileInput.onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
-['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-drop.addEventListener('dragleave',e=>{e.preventDefault();drop.classList.remove('over');});
-drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) handleFile(f);});
-function handleFile(file){
-  stopAudio(); initAudio();
-  $('#dropsub').textContent='正在解码 '+file.name+' …';
-  file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(async ab=>{
-    $('#dropsub').textContent='正在分析整首歌（低/中/高频 + 起伏，在本机）…';
-    audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
-    fileTL=await analyzeBuffer(ab);
-    $('#dropsub').textContent='AI 正在用 CLAP 读这首歌的"气质"（首次需下载模型，约 10–30 秒，全在本机）…';
-    songEssence=null; essMoodStr='';
-    try{ songEssence=await extractEssence(ab); essMoodStr=essenceMood(songEssence); }catch(e){ songEssence=null; }
-    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）'+(essMoodStr?' · 气质：'+essMoodStr:' · 已分析（CLAP 未就绪，退回信号级）');
-    $('#mainBadge').textContent='你的视角 · '+file.name;
-    goStep(3);
-  }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
-}
-function mixMono(ab){
-  if(ab.numberOfChannels===1) return ab.getChannelData(0);
-  const a=ab.getChannelData(0), b=ab.getChannelData(1), out=new Float32Array(a.length);
-  for(let i=0;i<a.length;i++) out[i]=(a[i]+b[i])*.5; return out;
-}
+/* ---------- 信号分析（能量/频段/起伏，按本曲归一化） ---------- */
 const NORM=(arr)=>{ const s=Array.from(arr).sort((a,b)=>a-b); const lo=s[Math.floor(s.length*.05)]||0, hi=s[Math.floor(s.length*.95)]||1; const d=(hi-lo)||1, out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++) out[i]=clamp((arr[i]-lo)/d,0,1); return out; };
 const SMOOTH=(arr,k)=>{ const out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++){ let s=0,c=0; for(let j=-k;j<=k;j++){ const x=i+j; if(x>=0&&x<arr.length){s+=arr[x];c++;} } out[i]=s/c; } return out; };
-function rmsEnv(ch,sr,fps){
-  const hop=Math.max(1,Math.floor(sr/fps)), N=Math.max(1,Math.floor(ch.length/hop)), out=new Float32Array(N);
-  for(let f=0;f<N;f++){ const s0=f*hop; let s=0,c=0; for(let i=0;i<hop && s0+i<ch.length;i++){ const v=ch[s0+i]; s+=v*v; c++; } out[f]=Math.sqrt(s/(c||1)); }
-  return out;
-}
-function renderBand(ab,type,freq){
-  return new Promise((res,rej)=>{ try{
-    const OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
-    const oc=new OC(1,ab.length,ab.sampleRate);
-    const src=oc.createBufferSource(); src.buffer=ab;
-    const flt=oc.createBiquadFilter(); flt.type=type; flt.frequency.value=freq; if(type==='bandpass') flt.Q.value=.8;
-    src.connect(flt); flt.connect(oc.destination); src.start(0);
-    oc.startRendering().then(rb=>res(rb.getChannelData(0))).catch(rej);
-  }catch(e){ rej(e); } });
-}
-// 整首预分析：能量 + 三频段(低/中/高) + 亮度比 + 低频比 + 起伏(onset)，全部按本曲动态范围归一化
+function mixMono(ab){ if(ab.numberOfChannels===1) return ab.getChannelData(0); const a=ab.getChannelData(0),b=ab.getChannelData(1),o=new Float32Array(a.length); for(let i=0;i<a.length;i++)o[i]=(a[i]+b[i])*.5; return o; }
+function rmsEnv(ch,sr,fps){ const hop=Math.max(1,Math.floor(sr/fps)),N=Math.max(1,Math.floor(ch.length/hop)),out=new Float32Array(N); for(let f=0;f<N;f++){const s0=f*hop;let s=0,c=0;for(let i=0;i<hop&&s0+i<ch.length;i++){const v=ch[s0+i];s+=v*v;c++;}out[f]=Math.sqrt(s/(c||1));} return out; }
+function renderBand(ab,type,freq){ return new Promise((res,rej)=>{try{const OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;const oc=new OC(1,ab.length,ab.sampleRate);const src=oc.createBufferSource();src.buffer=ab;const flt=oc.createBiquadFilter();flt.type=type;flt.frequency.value=freq;if(type==='bandpass')flt.Q.value=.8;src.connect(flt);flt.connect(oc.destination);src.start(0);oc.startRendering().then(rb=>res(rb.getChannelData(0))).catch(rej);}catch(e){rej(e);}}); }
 async function analyzeBuffer(ab){
   const sr=ab.sampleRate, fps=30, mono=mixMono(ab);
   const overall=rmsEnv(mono,sr,fps), N=overall.length;
   let lowE=null,midE=null,highE=null;
-  try{
-    const [lo,md,hi]=await Promise.all([renderBand(ab,'lowpass',220),renderBand(ab,'bandpass',1000),renderBand(ab,'highpass',3500)]);
-    lowE=rmsEnv(lo,sr,fps); midE=rmsEnv(md,sr,fps); highE=rmsEnv(hi,sr,fps);
-  }catch(e){ /* 兜底：拿不到频段就用中性值 */ }
+  try{ const [lo,md,hi]=await Promise.all([renderBand(ab,'lowpass',220),renderBand(ab,'bandpass',1000),renderBand(ab,'highpass',3500)]); lowE=rmsEnv(lo,sr,fps);midE=rmsEnv(md,sr,fps);highE=rmsEnv(hi,sr,fps); }catch(e){}
   const bright=new Float32Array(N), bass=new Float32Array(N);
-  if(lowE){ for(let i=0;i<N;i++){ const tot=lowE[i]+midE[i]+highE[i]+1e-6; bright[i]=highE[i]/tot; bass[i]=lowE[i]/tot; } }
-  else { bright.fill(.5); bass.fill(.5); }
+  if(lowE){ for(let i=0;i<N;i++){const tot=lowE[i]+midE[i]+highE[i]+1e-6;bright[i]=highE[i]/tot;bass[i]=lowE[i]/tot;} } else { bright.fill(.5); bass.fill(.5); }
   const nOverall=NORM(overall), onset=new Float32Array(N);
   for(let i=1;i<N;i++) onset[i]=Math.max(0,nOverall[i]-nOverall[i-1]);
-  return { fps, n:N, dur:ab.duration,
-    energy:SMOOTH(nOverall,4), bright:SMOOTH(NORM(bright),5), bass:SMOOTH(NORM(bass),5), onset:SMOOTH(NORM(onset),1) };
+  const tl={ fps, n:N, dur:ab.duration, energy:SMOOTH(nOverall,4), bright:SMOOTH(NORM(bright),5), bass:SMOOTH(NORM(bass),5), onset:SMOOTH(NORM(onset),1) };
+  tl.beats=extractBeats(tl.onset, fps);
+  return tl;
 }
+function extractBeats(onset,fps){ const beats=[],n=onset.length,thr=.18,minGap=Math.floor(fps*.11); let last=-minGap; for(let i=1;i<n-1;i++){ if(onset[i]>thr&&onset[i]>=onset[i-1]&&onset[i]>onset[i+1]&&i-last>=minGap){ beats.push({t:i/fps,s:clamp(onset[i],0,1)}); last=i; } } return beats; }
 function narrate(int,val,bass,onset){
-  bass=bass||0; onset=onset||0;
+  bass=bass||0;onset=onset||0;
   if(int<.12) return {mood:'寂静',cap:'几乎全静——只有空气在响。'};
-  if(onset>.6 && int>.42) return {mood:'律动',cap:'有节奏的敲击一下下打进来——身体想跟着动。'};
-  if(int<.34) return bass>.5 ? {mood:'低伏',cap:'低音独自铺在底下，沉、稳、内省。'} : (val>.45?{mood:'清浅',cap:'声音很轻，明亮而克制。'}:{mood:'低回',cap:'安静地流动，像在自言自语。'});
+  if(onset>.6&&int>.42) return {mood:'律动',cap:'有节奏的敲击一下下打进来——身体想跟着动。'};
+  if(int<.34) return bass>.5?{mood:'低伏',cap:'低音独自铺在底下，沉、稳、内省。'}:(val>.45?{mood:'清浅',cap:'声音很轻，明亮而克制。'}:{mood:'低回',cap:'安静地流动，像在自言自语。'});
   if(int<.64) return {mood:'铺展',cap:'层次在叠加，情绪缓缓展开。'};
-  return val>.5 ? {mood:'明亮高点',cap:'能量推到很高、高频明亮——很满、很开阔的一刻。'} : {mood:'厚重轰鸣',cap:'低频压上来，沉重而有力量。'};
+  return val>.5?{mood:'明亮高点',cap:'能量推到很高、高频明亮——很满、很开阔的一刻。'}:{mood:'厚重轰鸣',cap:'低频压上来，沉重而有力量。'};
 }
 
-/* ---------- CLAP 气质提取（向量路：用 CLAP 把音乐的"抽象"摘成 6 条气质轴） ---------- */
-let songEssence=null, essMoodStr='';
+/* ---------- CLAP 气质（向量路） ---------- */
 const CONCEPT={
   warmth:['warm tender emotional music','cold mechanical detached sound'],
   energy:['energetic intense powerful music','soft gentle quiet music'],
@@ -370,209 +195,175 @@ const CONCEPT={
   density:['lush dense richly layered music','sparse minimal empty music'],
 };
 const ALL_LABELS=[].concat(...Object.values(CONCEPT));
-async function to48kMono(ab){
-  const sr=48000, oc=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,Math.max(1,Math.ceil(ab.duration*sr)),sr);
-  const src=oc.createBufferSource(); src.buffer=ab; src.connect(oc.destination); src.start(0);
-  const rb=await oc.startRendering(); return rb.getChannelData(0);
-}
+async function to48kMono(ab){ const sr=48000,oc=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,Math.max(1,Math.ceil(ab.duration*sr)),sr);const src=oc.createBufferSource();src.buffer=ab;src.connect(oc.destination);src.start(0);const rb=await oc.startRendering();return rb.getChannelData(0); }
 async function extractEssence(ab){
   if(!window.CLAP) return null;
-  const mono=await to48kMono(ab), sr=48000, total=mono.length;
-  const winLen=Math.min(total, sr*10), nWin=Math.min(2,Math.max(1,Math.floor(total/winLen)));
+  const mono=await to48kMono(ab),sr=48000,total=mono.length;
+  const winLen=Math.min(total,sr*10),nWin=Math.min(2,Math.max(1,Math.floor(total/winLen)));
   const acc={}; ALL_LABELS.forEach(l=>acc[l]=0);
-  for(let w=0; w<nWin; w++){
-    const start=Math.floor((total-winLen)*(nWin<=1?0.4:(w/(nWin-1))));
-    const out=await window.CLAP.classify(mono.subarray(start,start+winLen), ALL_LABELS);
-    out.forEach(o=>acc[o.label]+=o.score);
-  }
-  const sc=l=>acc[l]/nWin, axis=p=>{ const a=sc(p[0]),b=sc(p[1]); return clamp(a/((a+b)||1),0,1); };
-  return { warmth:axis(CONCEPT.warmth), energy:axis(CONCEPT.energy), bright:axis(CONCEPT.bright), tense:axis(CONCEPT.tense), flow:axis(CONCEPT.flow), density:axis(CONCEPT.density) };
+  for(let w=0;w<nWin;w++){ const start=Math.floor((total-winLen)*(nWin<=1?.4:(w/(nWin-1)))); const out=await window.CLAP.classify(mono.subarray(start,start+winLen),ALL_LABELS); out.forEach(o=>acc[o.label]+=o.score); }
+  const sc=l=>acc[l]/nWin, axis=p=>{const a=sc(p[0]),b=sc(p[1]);return clamp(a/((a+b)||1),0,1);};
+  return { warmth:axis(CONCEPT.warmth),energy:axis(CONCEPT.energy),bright:axis(CONCEPT.bright),tense:axis(CONCEPT.tense),flow:axis(CONCEPT.flow),density:axis(CONCEPT.density) };
 }
-function essenceMood(e){
-  if(!e) return '';
-  return [[Math.abs(e.warmth-.5),e.warmth>.5?'温暖':'冷峻'],[Math.abs(e.tense-.5),e.tense>.5?'紧张':'松弛'],[Math.abs(e.bright-.5),e.bright>.5?'明亮':'晦暗'],[Math.abs(e.energy-.5),e.energy>.5?'有力':'轻柔'],[Math.abs(e.flow-.5),e.flow>.5?'梦幻流动':'凌厉'],[Math.abs(e.density-.5),e.density>.5?'繁密':'疏阔']].sort((a,b)=>b[0]-a[0]).slice(0,3).map(c=>c[1]).join('、');
-}
-function blendProfile(prof,e){
-  if(!e) return prof;
-  const m=(a,b)=>clamp(a*.5+b*.5,0,1);
-  return { warmth:m(prof.warmth,e.warmth), energy:m(prof.energy,e.energy), structure:m(prof.structure,1-e.flow), density:m(prof.density,e.density), neutral:prof.neutral };
+function essenceMood(e){ if(!e)return''; return [[Math.abs(e.warmth-.5),e.warmth>.5?'温暖':'冷峻'],[Math.abs(e.tense-.5),e.tense>.5?'紧张':'松弛'],[Math.abs(e.bright-.5),e.bright>.5?'明亮':'晦暗'],[Math.abs(e.energy-.5),e.energy>.5?'有力':'轻柔'],[Math.abs(e.flow-.5),e.flow>.5?'梦幻流动':'凌厉'],[Math.abs(e.density-.5),e.density>.5?'繁密':'疏阔']].sort((a,b)=>b[0]-a[0]).slice(0,3).map(c=>c[1]).join('、'); }
+function essenceToProfile(e){ return { warmth:e.warmth, energy:e.energy, structure:clamp(1-e.flow,0,1), density:e.density }; }
+
+/* ---------- 上传 ---------- */
+const drop=$('#drop'), fileInput=$('#fileInput');
+fileInput.onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+drop.addEventListener('dragleave',e=>{e.preventDefault();drop.classList.remove('over');});
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+function handleFile(file){
+  stopAudio(); initAudio();
+  $('#dropsub').textContent='正在解码 '+file.name+' …';
+  file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(async ab=>{
+    $('#dropsub').textContent='正在分析整首歌（声学起伏 + 拍点，在本机）…';
+    audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
+    fileTL=await analyzeBuffer(ab);
+    $('#dropsub').textContent='AI 正在用 CLAP 读这首歌的"气质"（首次需下载模型，约 10–30 秒，全在本机）…';
+    songEssence=null; essMoodStr='';
+    try{ songEssence=await extractEssence(ab); essMoodStr=essenceMood(songEssence); }catch(e){ songEssence=null; }
+    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）'+(essMoodStr?' · 气质：'+essMoodStr:' · 已分析');
+    $('#mainBadge').textContent=file.name+(essMoodStr?'　·　气质 '+essMoodStr:'');
+    goStep(2);
+  }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
 }
 
-/* ---------- 步骤切换 ---------- */
+/* ---------- 样曲 ---------- */
+$$('.scard').forEach(c=>c.onclick=()=>{
+  stopAudio(); selectedSong=c.dataset.song; mode='synth'; songEssence=null; essMoodStr='';
+  $('#mainBadge').textContent=(c.dataset.song==='rain'?'雨夜独白':'破晓')+'（合成样曲）';
+  goStep(2);
+});
+$('#backTo1').onclick=()=>{ stopAudio(); goStep(1); };
+
+/* ---------- 步骤 ---------- */
 function goStep(n){
   $$('.panel').forEach(p=>p.classList.toggle('active',+p.dataset.p===n));
   $$('.stp').forEach(s=>{ const v=+s.dataset.s; s.classList.toggle('on',v===n); s.classList.toggle('done',v<n); });
-  if(n===3){ ensureEngines(); setView('single'); }
-  if(n===4){ ensureEngines(); setView('split'); }
+  if(n===2) ensureEngine();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ---------- 内置样曲（情绪时间轴） ---------- */
+/* ---------- 内置样曲 ---------- */
 const SONGS={
-  rain:{ dur:36, sections:[
-    {t:0, mood:'孤独', val:.18, int:.25, chord:[57,60,64,69], cap:'钢琴独自进入，一个音符悬在空中——孤独，克制。'},
-    {t:8, mood:'渴望', val:.34, int:.52, chord:[53,57,60,65], cap:'低音慢慢加入，旋律往上够——一种说不出口的渴望。'},
-    {t:18,mood:'爆发', val:.5,  int:.96, chord:[52,56,59,64,71,76], cap:'所有声音一起涌上来，这是整首歌的最高点。'},
-    {t:26,mood:'释然', val:.42, int:.3,  chord:[57,60,64], cap:'一切退去，只剩余音——释然，但留下了什么。'},
-  ]},
-  dawn:{ dur:34, sections:[
-    {t:0, mood:'静谧', val:.5,  int:.2,  chord:[60,64,67], cap:'黎明前的安静，单个音符像第一缕光。'},
-    {t:7, mood:'萌动', val:.62, int:.46, chord:[55,59,62,67], cap:'节奏出现，色彩一点点亮起来。'},
-    {t:16,mood:'明亮', val:.88, int:.92, chord:[60,64,67,72,76,79], cap:'整片天空打开——明亮、辽阔、向上。'},
-    {t:26,mood:'开阔', val:.74, int:.5,  chord:[53,57,60,65,69], cap:'光铺满了一切，平静而充满希望。'},
-  ]},
+  rain:{dur:36,sections:[{t:0,mood:'孤独',val:.18,int:.25,chord:[57,60,64,69],cap:'钢琴独自进入，一个音符悬在空中——孤独，克制。'},{t:8,mood:'渴望',val:.34,int:.52,chord:[53,57,60,65],cap:'低音慢慢加入，旋律往上够——一种说不出口的渴望。'},{t:18,mood:'爆发',val:.5,int:.96,chord:[52,56,59,64,71,76],cap:'所有声音一起涌上来，这是整首歌的最高点。'},{t:26,mood:'释然',val:.42,int:.3,chord:[57,60,64],cap:'一切退去，只剩余音——释然，但留下了什么。'}]},
+  dawn:{dur:34,sections:[{t:0,mood:'静谧',val:.5,int:.2,chord:[60,64,67],cap:'黎明前的安静，单个音符像第一缕光。'},{t:7,mood:'萌动',val:.62,int:.46,chord:[55,59,62,67],cap:'节奏出现，色彩一点点亮起来。'},{t:16,mood:'明亮',val:.88,int:.92,chord:[60,64,67,72,76,79],cap:'整片天空打开——明亮、辽阔、向上。'},{t:26,mood:'开阔',val:.74,int:.5,chord:[53,57,60,65,69],cap:'光铺满了一切，平静而充满希望。'}]},
 };
-function sectionAt(song,t){ const s=SONGS[song].sections; let cur=s[0]; for(const sec of s){ if(t>=sec.t) cur=sec; } return cur; }
+function sectionAt(song,t){ const s=SONGS[song].sections; let cur=s[0]; for(const sec of s){ if(t>=sec.t)cur=sec; } return cur; }
 
-/* ---------- 音频引擎 ---------- */
-let actx=null, master=null, comp=null, busFilter=null;
-let schedTimer=null, nextNote=0, step16=0, startTime=0, playing=false, curSong=null;
-function initAudio(){
-  if(actx) return;
-  actx=new (window.AudioContext||window.webkitAudioContext)();
-  master=actx.createGain(); master.gain.value=.85;
-  comp=actx.createDynamicsCompressor();
-  busFilter=actx.createBiquadFilter(); busFilter.type='lowpass'; busFilter.frequency.value=1800;
-  busFilter.connect(master); master.connect(comp); comp.connect(actx.destination);
-  const delay=actx.createDelay(); delay.delayTime.value=.33; const fb=actx.createGain(); fb.gain.value=.24;
-  busFilter.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(comp);
-}
-function voice(freq,t,dur,gain,type){
-  const o=actx.createOscillator(), g=actx.createGain();
-  o.type=type||'triangle'; o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain,t+.012); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-  o.connect(g); g.connect(busFilter); o.start(t); o.stop(t+dur+.05);
-}
-function kick(t){
-  const o=actx.createOscillator(), g=actx.createGain();
-  o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(45,t+.12);
-  g.gain.setValueAtTime(.5,t); g.gain.exponentialRampToValueAtTime(.0001,t+.18);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t+.2);
-}
+/* ---------- 音频 ---------- */
+let actx=null,master=null,comp=null,busFilter=null,schedTimer=null,nextNote=0,step16=0,startTime=0,playing=false,curSong=null;
+function initAudio(){ if(actx)return; actx=new (window.AudioContext||window.webkitAudioContext)(); master=actx.createGain();master.gain.value=.85; comp=actx.createDynamicsCompressor(); busFilter=actx.createBiquadFilter();busFilter.type='lowpass';busFilter.frequency.value=1800; busFilter.connect(master);master.connect(comp);comp.connect(actx.destination); const delay=actx.createDelay();delay.delayTime.value=.33;const fb=actx.createGain();fb.gain.value=.24;busFilter.connect(delay);delay.connect(fb);fb.connect(delay);delay.connect(comp); }
+function avoice(freq,t,dur,gain,type){ const o=actx.createOscillator(),g=actx.createGain();o.type=type||'triangle';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(busFilter);o.start(t);o.stop(t+dur+.05); }
+function akick(t){ const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g);g.connect(master);o.start(t);o.stop(t+.2); }
 let lastSecT=-1;
-function scheduler(){
-  const ahead=.12, step=(60/96)/4;
-  while(nextNote < actx.currentTime+ahead){
-    const dur=SONGS[curSong].dur; let e=(nextNote-startTime)%dur; if(e<0)e+=dur;
-    const sec=sectionAt(curSong,e), tones=sec.chord, int=sec.int, val=sec.val;
-    busFilter.frequency.setTargetAtTime(500+val*4200+int*1800, nextNote, .05);
-    if(sec.t!==lastSecT){ lastSecT=sec.t; tones.slice(0,4).forEach(m=>voice(midi(m-12),nextNote,3.4,.045,'sine')); }
-    const play = int<.32 ? (step16%4===0) : int<.62 ? (step16%2===0) : true;
-    if(play){ let m=tones[step16%tones.length]; if(int>.8 && step16%2===0) m+=12; voice(midi(m),nextNote,int<.5?.5:.32,.11+int*.05,'triangle'); if(int>.7) voice(midi(m+7),nextNote,.22,.04,'sine'); }
-    if(int>.55 && step16%4===0) kick(nextNote);
-    nextNote+=step; step16++;
-  }
-}
-function startSynth(){ curSong=selectedSong; lastSecT=-1; step16=0; startTime=actx.currentTime+.06; nextNote=startTime; schedTimer=setInterval(scheduler,25); }
-function startFile(){ fileSource=actx.createBufferSource(); fileSource.buffer=audioBuffer; fileSource.loop=true; fileSource.connect(master); startTime=actx.currentTime+.04; fileSource.start(startTime); }
-function setIcons(s){ const a=$('#playBtn'),b=$('#playBtn2'); if(a)a.textContent=s; if(b)b.textContent=s; }
-function startAudio(){
-  stopAudio();                 // 关键：播放前强制清场，杜绝双音源
-  initAudio(); if(actx.state==='suspended') actx.resume();
-  if(mode==='file' && audioBuffer) startFile(); else startSynth();
-  playing=true; setIcons('⏸');
-}
-function stopAudio(){
-  playing=false;
-  if(schedTimer){ clearInterval(schedTimer); schedTimer=null; }
-  if(fileSource){ try{fileSource.onended=null; fileSource.stop();}catch(e){} try{fileSource.disconnect();}catch(e){} fileSource=null; }
-  setIcons('▶');
-}
+function scheduler(){ const ahead=.12,step=(60/96)/4; while(nextNote<actx.currentTime+ahead){ const dur=SONGS[curSong].dur;let e=(nextNote-startTime)%dur;if(e<0)e+=dur; const sec=sectionAt(curSong,e),tones=sec.chord,int=sec.int,val=sec.val; busFilter.frequency.setTargetAtTime(500+val*4200+int*1800,nextNote,.05); if(sec.t!==lastSecT){lastSecT=sec.t;tones.slice(0,4).forEach(m=>avoice(midi(m-12),nextNote,3.4,.045,'sine'));} const play=int<.32?(step16%4===0):int<.62?(step16%2===0):true; if(play){let m=tones[step16%tones.length];if(int>.8&&step16%2===0)m+=12;avoice(midi(m),nextNote,int<.5?.5:.32,.11+int*.05,'triangle');if(int>.7)avoice(midi(m+7),nextNote,.22,.04,'sine');} if(int>.55&&step16%4===0)akick(nextNote); nextNote+=step;step16++; } }
+function startSynth(){ curSong=selectedSong;lastSecT=-1;step16=0;startTime=actx.currentTime+.06;nextNote=startTime;schedTimer=setInterval(scheduler,25); }
+function startFile(){ fileSource=actx.createBufferSource();fileSource.buffer=audioBuffer;fileSource.loop=true;fileSource.connect(master);startTime=actx.currentTime+.04;fileSource.start(startTime); }
+function setIcons(s){ const a=$('#playBtn'); if(a)a.textContent=s; }
+function startAudio(){ stopAudio(); initAudio(); if(actx.state==='suspended')actx.resume(); _beatPtr=0;_lastE=0; if(mode==='file'&&audioBuffer)startFile(); else startSynth(); playing=true; setIcons('⏸'); }
+function stopAudio(){ playing=false; if(schedTimer){clearInterval(schedTimer);schedTimer=null;} if(fileSource){try{fileSource.onended=null;fileSource.stop();}catch(e){}try{fileSource.disconnect();}catch(e){}fileSource=null;} setIcons('▶'); }
 
-/* ---------- 视觉引擎 ---------- */
+/* ---------- 视觉引擎（气质=世界 + 音游式节奏呈现） ---------- */
 class Engine{
-  constructor(canvas,prof){ this.c=canvas; this.x=canvas.getContext('2d'); this.p=prof; this.parts=[]; this.curInt=.2; this.t=Math.random()*1000; this.resize(); }
-  resize(){ const dpr=Math.min(devicePixelRatio||1,2); const r=this.c.getBoundingClientRect(); this.w=Math.max(2,r.width); this.h=Math.max(2,r.height); this.c.width=this.w*dpr; this.c.height=this.h*dpr; this.x.setTransform(dpr,0,0,dpr,0,0); this.x.fillStyle='#05050a'; this.x.fillRect(0,0,this.w,this.h); this.seed(); }
-  seed(){ const p=this.p; const N=Math.round(90+p.density*430*(Math.min(this.w*this.h,500000)/500000)); this.parts=[]; for(let i=0;i<N;i++) this.parts.push(this.mk()); }
+  constructor(canvas,prof){ this.c=canvas;this.x=canvas.getContext('2d');this.p=prof;this.parts=[];this.curInt=.2;this.t=Math.random()*1000;this.beatPulse=0;this.wave=0;this.waveStr=0;this.resize(); }
+  resize(){ const dpr=Math.min(devicePixelRatio||1,2);const r=this.c.getBoundingClientRect();this.w=Math.max(2,r.width);this.h=Math.max(2,r.height);this.c.width=this.w*dpr;this.c.height=this.h*dpr;this.x.setTransform(dpr,0,0,dpr,0,0);this.x.fillStyle='#05050a';this.x.fillRect(0,0,this.w,this.h);this.seed(); }
+  seed(){ const p=this.p;const N=Math.round(70+p.density*300*(Math.min(this.w*this.h,500000)/500000));this.parts=[];for(let i=0;i<N;i++)this.parts.push(this.mk()); }
   mk(){ return {x:Math.random()*this.w,y:Math.random()*this.h,px:0,py:0,vx:0,vy:0,life:Math.random()*200}; }
-  field(x,y){ const p=this.p; const sc=lerp(.0022,.0011,p.structure)*lerp(1,1.6,this.curInt);
-    let a=(Math.sin(x*sc+this.t*.3)+Math.cos(y*sc-this.t*.22)+Math.sin((x+y)*sc*.6+this.t*.15))*Math.PI;
-    if(p.structure>.6){ const q=p.structure>.8?Math.PI/2:Math.PI/4; a=Math.round(a/q)*q; } return a; }
+  field(x,y){ const p=this.p;const sc=lerp(.0022,.0011,p.structure)*lerp(1,1.5,this.curInt);let a=(Math.sin(x*sc+this.t*.3)+Math.cos(y*sc-this.t*.22)+Math.sin((x+y)*sc*.6+this.t*.15))*Math.PI;if(p.structure>.6){const q=p.structure>.8?Math.PI/2:Math.PI/4;a=Math.round(a/q)*q;}return a; }
   step(sig,dt){
-    const p=this.p;
-    const b=(sig.bass!=null)?sig.bass:.42, on=sig.onset||0;
-    this.flash=Math.max((this.flash||0)*.88, on); const flash=this.flash;
-    this.curInt=lerp(this.curInt,sig.int,.06); this.t+=dt*(.15+this.curInt*.55+p.energy*.2);
-    const energy=clamp(this.curInt*.85+p.energy*.2,0,1.3);
-    const speed=.4+energy*2.8+p.energy*.6+flash*1.4;
+    const p=this.p, x=this.x, w=this.w, h=this.h, cx=w/2, cy=h/2;
+    this.curInt=lerp(this.curInt,sig.int,.08); this.t+=dt*(.15+this.curInt*.5+p.energy*.2);
+    const energy=clamp(this.curInt*.85+p.energy*.15,0,1.3);
     const warmMix=clamp(sig.val*.5+p.warmth*.6,0,1);
-    const hue=lerp(232,388,warmMix)%360;   // 绕紫/红半圈，冷蓝→暖橙，避开绿色
-    const sat=p.neutral?22:clamp(36+energy*50,28,92);
-    const lit=clamp(46+this.curInt*24+flash*20+(this.curInt>.8?8:0),40,88);
-    const climax=this.curInt>.78 || flash>.55;
-    const gravY=(b-.42)*0.55 - (sig.val-.5)*0.32;  // 低频→下沉厚重，高频→上扬轻盈
-    const x=this.x; x.globalCompositeOperation='source-over';
-    x.fillStyle='rgba(5,5,11,'+(p.structure>.6?.16:.09)+')'; x.fillRect(0,0,this.w,this.h);
-    x.globalCompositeOperation=climax?'lighter':'source-over';
-    x.lineWidth=lerp(2.2,1.0,p.structure)*(climax?1.5:1); x.lineCap=p.structure>.6?'butt':'round';
+    const hue=lerp(232,388,warmMix)%360;
+    const sat=clamp(40+energy*46,34,92);
+    const geom=p.structure>.55;
+    const hit=sig.hit||0;
+    this.beatPulse=Math.max(this.beatPulse*.9, hit);
+    if(hit>.2){ this.wave=0; this.waveStr=Math.max(this.waveStr,hit); }
+    if(this.waveStr>.02){ this.wave+=dt*Math.max(w,h)*.9; this.waveStr*=.94; }
+    // 拖尾
+    x.globalCompositeOperation='source-over'; x.fillStyle='rgba(5,5,11,0.18)'; x.fillRect(0,0,w,h);
+    // 气质氛围（流场，压暗当背景）
+    x.globalCompositeOperation='lighter';
+    const speed=.4+energy*2.0; x.lineWidth=lerp(1.7,1.0,p.structure); x.lineCap='round';
     for(const pt of this.parts){
-      const a=this.field(pt.x,pt.y); pt.vx+=Math.cos(a)*.6; pt.vy+=Math.sin(a)*.6+gravY;
+      const a=this.field(pt.x,pt.y); pt.vx+=Math.cos(a)*.5; pt.vy+=Math.sin(a)*.5;
       const sp=Math.hypot(pt.vx,pt.vy)||.001; if(sp>speed){pt.vx*=speed/sp;pt.vy*=speed/sp;}
-      pt.px=pt.x; pt.py=pt.y; pt.x+=pt.vx; pt.y+=pt.vy; pt.life--;
-      if(pt.x<-5||pt.x>this.w+5||pt.y<-5||pt.y>this.h+5||pt.life<0){ const np=this.mk(); np.life=120+Math.random()*180; Object.assign(pt,np); continue; }
-      const h2=hue+(Math.sin(pt.life*.05)*16);
-      x.strokeStyle=`hsla(${h2},${sat}%,${lit}%,${climax?.5:.34})`;
-      x.beginPath(); x.moveTo(pt.px,pt.py); x.lineTo(pt.x,pt.y); x.stroke();
+      pt.px=pt.x;pt.py=pt.y;pt.x+=pt.vx;pt.y+=pt.vy;pt.life--;
+      if(pt.x<-5||pt.x>w+5||pt.y<-5||pt.y>h+5||pt.life<0){const np=this.mk();np.life=120+Math.random()*160;Object.assign(pt,np);continue;}
+      x.strokeStyle=`hsla(${hue+Math.sin(pt.life*.05)*16},${sat}%,${clamp(40+energy*16,38,66)}%,0.16)`;
+      x.beginPath();x.moveTo(pt.px,pt.py);x.lineTo(pt.x,pt.y);x.stroke();
     }
-    // 起伏(onset)→节奏迸发：一圈扩散的光环
-    if(flash>.5 && Math.random()<.6){ x.strokeStyle=`hsla(${hue},${sat}%,${Math.min(lit+16,92)}%,${.3*flash})`; x.lineWidth=1.4; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,6+flash*flash*46,0,7); x.stroke(); }
-    if(climax && Math.random()<.3){ x.fillStyle=`hsla(${hue},${sat}%,${Math.min(lit+15,90)}%,.5)`; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,2+Math.random()*4,0,7); x.fill(); }
+    // ---- 音游式节奏层 ----
+    const maxR=Math.min(w,h)*0.46;
+    // 预拍：飞向中心，命中时到达
+    for(const c of (sig.coming||[])){
+      const r=maxR*(1-c.p), px=cx+Math.cos(c.a)*r, py=cy+Math.sin(c.a)*r;
+      const al=clamp(c.p,0,1)*(0.35+c.s*0.55);
+      x.strokeStyle=`hsla(${hue},${sat}%,${clamp(58+c.p*28,55,92)}%,${al})`; x.lineWidth=1+c.s*2.6;
+      if(geom){ const r2=Math.min(maxR,r+14); x.beginPath();x.moveTo(cx+Math.cos(c.a)*r2,cy+Math.sin(c.a)*r2);x.lineTo(px,py);x.stroke(); }
+      else { x.fillStyle=x.strokeStyle; x.beginPath();x.arc(px,py,1.6+c.s*3.2,0,7);x.fill(); }
+    }
+    // 冲击波
+    if(this.waveStr>.02){ x.strokeStyle=`hsla(${hue},${sat}%,84%,${this.waveStr*.5})`; x.lineWidth=2; x.beginPath();x.arc(cx,cy,Math.max(2,this.wave),0,7);x.stroke(); }
+    // 中心核·锁拍脉动
+    const coreR=14+energy*14+this.beatPulse*72;
+    const grd=x.createRadialGradient(cx,cy,0,cx,cy,Math.max(2,coreR));
+    grd.addColorStop(0,`hsla(${hue},${sat}%,${clamp(60+this.beatPulse*32,58,96)}%,${0.45+this.beatPulse*.45})`);
+    grd.addColorStop(1,`hsla(${hue},${sat}%,55%,0)`);
+    x.fillStyle=grd; x.beginPath();x.arc(cx,cy,Math.max(2,coreR),0,7);x.fill();
     x.globalCompositeOperation='source-over';
   }
 }
 
 /* ---------- 渲染循环 ---------- */
-let engMain=null, engDef=null, engYou=null, view='single', lastTS=0;
-function ensureEngines(){
-  const pm=blendProfile(profile||DEFAULT_PROFILE,songEssence), pd=blendProfile(DEFAULT_PROFILE,songEssence), py=blendProfile(profile||DEFAULT_PROFILE,songEssence);
-  if(!engMain) engMain=new Engine($('#mainCanvas'),pm); else { engMain.p=pm; engMain.seed(); }
-  if(!engDef) engDef=new Engine($('#canvasDefault'),pd); else { engDef.p=pd; engDef.seed(); }
-  if(!engYou) engYou=new Engine($('#canvasYou'),py); else { engYou.p=py; engYou.seed(); }
-}
-function setView(v){ view=v; }
+let engMain=null, lastTS=0;
+function ensureEngine(){ const pp=songEssence?essenceToProfile(songEssence):SAMPLE_PROFILE; if(!engMain)engMain=new Engine($('#mainCanvas'),pp); else {engMain.p=pp;engMain.seed();} }
 function frame(ts){
   const dt=Math.min((ts-lastTS)/1000||.016,.05); lastTS=ts;
   let sig={int:.14,val:.42,mood:'',cap:''}, prog=0;
-  if(playing && actx){
-    if(mode==='file' && audioBuffer && fileTL){
+  if(playing&&actx){
+    if(mode==='file'&&audioBuffer&&fileTL){
       let e=actx.currentTime-startTime; e=fileDur?(((e%fileDur)+fileDur)%fileDur):0; prog=fileDur?e/fileDur:0;
       const idx=clamp(Math.floor(e*fileTL.fps),0,fileTL.n-1);
       const int=fileTL.energy[idx], bass=fileTL.bass?fileTL.bass[idx]:.5, onset=fileTL.onset?fileTL.onset[idx]:0;
       let val=fileTL.bright[idx]; if(songEssence) val=clamp(val*.6+songEssence.bright*.4,0,1);
       sig=Object.assign({int,val,bass,onset},narrate(int,val,bass,onset));
       if(essMoodStr) sig.mood='气质 · '+essMoodStr;
+      let hit=0; const coming=[]; const beats=fileTL.beats;
+      if(beats&&beats.length){
+        if(e<_lastE)_beatPtr=0;
+        while(_beatPtr<beats.length&&beats[_beatPtr].t<=e){hit=Math.max(hit,beats[_beatPtr].s);_beatPtr++;}
+        _lastE=e; const LEAD=1.1;
+        for(const b of beats){const d2=b.t-e;if(d2<=0)continue;if(d2>=LEAD)break;coming.push({p:1-d2/LEAD,s:b.s,a:(b.t*2.399)%(Math.PI*2)});}
+      }
+      sig.hit=hit; sig.coming=coming;
     } else if(curSong){
       const dur=SONGS[curSong].dur; let e=((actx.currentTime-startTime)%dur+dur)%dur; sig=sectionAt(curSong,e); prog=e/dur;
     }
   }
-  if(view==='single' && engMain) engMain.step(sig,dt);
-  if(view==='split'){ if(engDef) engDef.step(sig,dt); if(engYou) engYou.step(sig,dt); }
-  if(playing){
-    const show=$('#capToggle').checked;
-    $('#moodText').textContent=sig.mood||'—'; $('#moodText2').textContent=sig.mood||'—';
-    $('#capText').textContent=show?(sig.cap||''):''; $('#capText').style.opacity=show?1:0;
-    $('#capText2').textContent=sig.cap||'';
-    $('#seek i').style.width=(prog*100)+'%'; $('#seek2 i').style.width=(prog*100)+'%';
-  }
+  if(engMain) engMain.step(sig,dt);
+  if(playing){ const show=$('#capToggle').checked; $('#moodText').textContent=sig.mood||'—'; $('#capText').textContent=show?(sig.cap||''):''; $('#capText').style.opacity=show?1:0; $('#seek i').style.width=(prog*100)+'%'; }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-/* ---------- 播放控制 ---------- */
-function togglePlay(){ if(playing) stopAudio(); else startAudio(); }
-$('#playBtn').onclick=togglePlay;
-$('#playBtn2').onclick=togglePlay;
-$('#toSplit').onclick=()=>{ goStep(4); if(!playing) startAudio(); };
-window.addEventListener('resize',()=>{ [engMain,engDef,engYou].forEach(e=>e&&e.resize()); });
+/* ---------- 控制 ---------- */
+$('#playBtn').onclick=()=>{ if(playing)stopAudio(); else startAudio(); };
+window.addEventListener('resize',()=>{ if(engMain)engMain.resize(); });
 </script>
 
-<!-- CLAP（向量路）：在浏览器内用 transformers.js 跑 CLAP，零 key、不上传 -->
+<!-- CLAP（向量路）：浏览器内跑 CLAP，零 key、不上传 -->
 <script type="module">
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 env.allowLocalModels=false;
 let _pipe=null,_loading=null;
-function getPipe(){ if(_pipe) return Promise.resolve(_pipe); if(!_loading) _loading=pipeline('zero-shot-audio-classification','Xenova/clap-htsat-unfused').then(p=>(_pipe=p)); return _loading; }
-window.CLAP={ ready:false, async classify(float32,labels){ const p=await getPipe(); window.CLAP.ready=true; return p(float32,labels); } };
+function getPipe(){ if(_pipe)return Promise.resolve(_pipe); if(!_loading)_loading=pipeline('zero-shot-audio-classification','Xenova/clap-htsat-unfused').then(p=>(_pipe=p)); return _loading; }
+window.CLAP={ ready:false, async classify(f,labels){ const p=await getPipe(); window.CLAP.ready=true; return p(f,labels); } };
 </script>
 </body>
 </html>
