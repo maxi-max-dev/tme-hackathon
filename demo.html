@@ -137,11 +137,16 @@
       <button class="btn" id="captionBtn">✦ 让 AI 解说这首歌</button>
       <button class="btn ghost" id="backTo1">← 换首歌</button>
     </div>
-    <div class="hint" id="captionHint" style="margin-top:8px">用 Gemini「读懂」这首歌、写成一段聋人也能看懂的文字（需先按 worker/README 配置后端）。</div>
+    <div id="keyRow" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--muted)">👉 在这里填 key：</span>
+      <input id="keyInput" type="password" placeholder="粘贴你的 Gemini key（AIza... 开头）" style="flex:1;min-width:240px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px 13px;font-family:inherit;font-size:13.5px">
+      <button class="btn ghost" id="keySave" style="padding:10px 18px">保存</button>
+    </div>
+    <div class="hint" id="captionHint" style="margin-top:8px">key 只存在<b style="color:var(--text)">你自己的浏览器</b>、只发给 Google，不进代码、不经过我。没有就去 <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> 拿一个（免费，AIza 开头）。</div>
   </div>
 
   <div class="note">
-    <b>关于这个 Demo（诚实说明）：</b>上传的歌全在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏 + 提取拍点，按本曲归一化），再用 <b>CLAP（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出"气质向量"。呈现借鉴<b>音游语法</b>：拍点提前飞向中心、精确命中、炸开冲击波——让节奏被"身体感"到，而不只是看个热闹。<b>诚实的局限</b>：把"气质"变成"真正对味的画面"仍是开放难题，这版是朝那走的一步。详见<a href="index.html">可行性报告</a>。<br>内置曲目：Kevin MacLeod (incompetech.com)，授权 CC-BY 4.0。
+    <b>关于这个 Demo（诚实说明）：</b>上传的歌全在<b>你浏览器里</b>处理：先做声学分析（能量/频段/起伏 + 提取拍点，按本曲归一化），再用 <b>CLAP（on-device · 零 key · 不上传 · 不碰版权）</b> 摘出"气质向量"。呈现借鉴<b>音游语法</b>：拍点提前飞向中心、精确命中、炸开冲击波——让节奏被"身体感"到，而不只是看个热闹。<b>分析与呈现全在本机</b>；只有点「AI 解说」时，音频才会用<b>你自己的 key</b> 发给 Google Gemini，换回一段可读的文字解说（key 只存你浏览器、不进代码、不经过我）。<b>诚实的局限</b>：把"气质"变成"真正对味的画面"仍是开放难题，这版是朝那走的一步。详见<a href="index.html">可行性报告</a>。<br>内置曲目：Kevin MacLeod (incompetech.com)，授权 CC-BY 4.0。
   </div>
   <div class="roadmap">
     <b>Roadmap（收进来、之后做）：</b>
@@ -164,7 +169,8 @@ const midi=m=>440*Math.pow(2,(m-69)/12);
 
 let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null, selectedSong=null;
 let rawAudioBytes=null, rawAudioMime='audio/mpeg';
-let CAPTION_API=localStorage.getItem('seeCaptionApi')||'';
+const GEMINI_MODEL='gemini-2.0-flash'; // 不可用就换 gemini-2.5-flash / gemini-1.5-flash
+const CAP_PROMPT='你是帮助听障者"读懂"音乐的解说员。请用中文写一段 150 字以内的解说，描述这段音乐的：情绪、张力的起伏（从安静到爆发等）、像什么画面或场景、乐器/声响的质感。目标是让一个听不见的人也能在脑海里"感受到"这首歌。要求：具体、有画面感；不要写歌词、不要逐句翻译、不要泛泛而谈（如"很好听""很有感染力"）。直接给解说正文，不要前缀。';
 let songEssence=null, essMoodStr='';
 let _beatPtr=0, _lastE=0;
 const SAMPLE_PROFILE={warmth:.6,energy:.5,structure:.4,density:.5};
@@ -375,20 +381,27 @@ requestAnimationFrame(frame);
 $('#playBtn').onclick=()=>{ if(playing)stopAudio(); else startAudio(); };
 window.addEventListener('resize',()=>{ if(engMain)engMain.resize(); });
 
-/* ---------- AI 解说（Gemini，经你的 Cloudflare Worker；key 不经过前端） ---------- */
+/* ---------- AI 解说（浏览器直连 Gemini；key 只存你浏览器、只发 Google） ---------- */
 function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C) s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
+function getKey(){ return localStorage.getItem('geminiKey')||''; }
+function refreshKeyUI(){ const k=getKey(), ki=$('#keyInput'); if(ki && k){ ki.value=''; ki.placeholder='✓ key 已保存（仅在你浏览器）— 可重填覆盖'; } }
+$('#keySave').onclick=()=>{ const v=$('#keyInput').value.trim(); if(!v){ $('#captionHint').textContent='先把 AIza... 粘进框里再点保存'; return; } localStorage.setItem('geminiKey',v); $('#captionHint').textContent='✓ key 已存到你的浏览器。现在点上面「✦ 让 AI 解说这首歌」。'; refreshKeyUI(); };
 $('#captionBtn').onclick=async()=>{
   if(!rawAudioBytes){ $('#captionHint').textContent='先选一首歌或上传文件'; return; }
-  if(!CAPTION_API){ const u=prompt('粘贴你的 Worker 网址（不是 key，是 https://xxx.workers.dev）：'); if(!u)return; CAPTION_API=u.trim(); localStorage.setItem('seeCaptionApi',CAPTION_API); }
+  let key=getKey()|| $('#keyInput').value.trim();
+  if(!key){ $('#captionHint').textContent='👇 先在下面填入你的 Gemini key（AIza...）再点解说'; $('#keyInput').focus(); return; }
+  localStorage.setItem('geminiKey',key); refreshKeyUI();
   const box=$('#aiCaption'); box.classList.add('show'); box.innerHTML='<div class="tag">AI 解说 · 生成中…</div>正在听这首歌、写解说（约几秒）…';
-  $('#captionHint').textContent='';
   try{
-    const r=await fetch(CAPTION_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio:u8ToB64(rawAudioBytes),mime:rawAudioMime})});
-    const j=await r.json().catch(()=>({error:'返回不是 JSON（网址对吗？）'}));
-    if(!r.ok||j.error){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+(j.error||('HTTP '+r.status))+'<br><span style="color:#9696ac;font-size:13px">检查：Worker 部署了吗？GEMINI_KEY 设了吗？详见 worker/README。</span>'; return; }
-    box.innerHTML='<div class="tag">AI 解说 · Gemini</div>'+(j.text||'(空)');
-  }catch(e){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+String(e)+'<br><span style="color:#9696ac;font-size:13px">网址对不对？Worker 部署了吗？</span>'; }
+    const body={contents:[{parts:[{inline_data:{mime_type:rawAudioMime||'audio/mpeg',data:u8ToB64(rawAudioBytes)}},{text:CAP_PROMPT}]}],generationConfig:{temperature:0.9,maxOutputTokens:400}};
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ const m=(j.error&&j.error.message)||('HTTP '+r.status); box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+m+'<br><span style="color:#9696ac;font-size:13px">key 对吗？（要 AIza 开头）。若说模型不存在，把代码里 GEMINI_MODEL 换成 gemini-2.5-flash。</span>'; return; }
+    const text=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
+    box.innerHTML='<div class="tag">AI 解说 · Gemini</div>'+(text||'(空)');
+  }catch(e){ box.innerHTML='<div class="tag" style="color:#fb7185">AI 解说 · 出错</div>'+String(e); }
 };
+refreshKeyUI();
 </script>
 
 <!-- CLAP（向量路）：浏览器内跑 CLAP，零 key、不上传 -->
