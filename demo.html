@@ -298,14 +298,13 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'
 function handleFile(file){
   stopAudio(); initAudio();
   $('#dropsub').textContent='正在解码 '+file.name+' …';
-  file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(ab=>{
-    $('#dropsub').textContent='正在分析整首歌（在本机）…';
-    setTimeout(()=>{
-      audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file'; fileTL=analyzeBuffer(ab);
-      $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）已分析完毕';
-      $('#mainBadge').textContent='你的视角 · '+file.name;
-      goStep(3);
-    },50);
+  file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(async ab=>{
+    $('#dropsub').textContent='正在分析整首歌（低/中/高频 + 起伏，在本机）…';
+    audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
+    fileTL=await analyzeBuffer(ab);
+    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）已分析完毕';
+    $('#mainBadge').textContent='你的视角 · '+file.name;
+    goStep(3);
   }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
 }
 function mixMono(ab){
@@ -313,26 +312,47 @@ function mixMono(ab){
   const a=ab.getChannelData(0), b=ab.getChannelData(1), out=new Float32Array(a.length);
   for(let i=0;i<a.length;i++) out[i]=(a[i]+b[i])*.5; return out;
 }
-function analyzeBuffer(ab){
-  const ch=mixMono(ab), sr=ab.sampleRate, fps=30, hop=Math.max(1,Math.floor(sr/fps)), N=Math.max(1,Math.floor(ch.length/hop));
-  const energy=new Float32Array(N), bright=new Float32Array(N);
-  for(let f=0;f<N;f++){
-    const s0=f*hop; let rms=0, zc=0, prev=0, cnt=0;
-    for(let i=0;i<hop && s0+i<ch.length;i++){ const v=ch[s0+i]; rms+=v*v; if(i>0 && ((v>=0)!==(prev>=0))) zc++; prev=v; cnt++; }
-    energy[f]=Math.sqrt(rms/(cnt||1)); bright[f]=zc/(cnt||1);
-  }
-  // 按本曲动态范围归一化（5%~95% 分位，避免极值拉偏）
-  const norm=(arr)=>{ const s=Array.from(arr).sort((a,b)=>a-b); const lo=s[Math.floor(s.length*.05)]||0, hi=s[Math.floor(s.length*.95)]||1; const d=(hi-lo)||1, out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++) out[i]=clamp((arr[i]-lo)/d,0,1); return out; };
-  const smooth=(arr,k)=>{ const out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++){ let s=0,c=0; for(let j=-k;j<=k;j++){ const x=i+j; if(x>=0&&x<arr.length){s+=arr[x];c++;} } out[i]=s/c; } return out; };
-  return { fps, n:N, dur:ab.duration, energy:smooth(norm(energy),4), bright:smooth(norm(bright),7) };
+const NORM=(arr)=>{ const s=Array.from(arr).sort((a,b)=>a-b); const lo=s[Math.floor(s.length*.05)]||0, hi=s[Math.floor(s.length*.95)]||1; const d=(hi-lo)||1, out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++) out[i]=clamp((arr[i]-lo)/d,0,1); return out; };
+const SMOOTH=(arr,k)=>{ const out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++){ let s=0,c=0; for(let j=-k;j<=k;j++){ const x=i+j; if(x>=0&&x<arr.length){s+=arr[x];c++;} } out[i]=s/c; } return out; };
+function rmsEnv(ch,sr,fps){
+  const hop=Math.max(1,Math.floor(sr/fps)), N=Math.max(1,Math.floor(ch.length/hop)), out=new Float32Array(N);
+  for(let f=0;f<N;f++){ const s0=f*hop; let s=0,c=0; for(let i=0;i<hop && s0+i<ch.length;i++){ const v=ch[s0+i]; s+=v*v; c++; } out[f]=Math.sqrt(s/(c||1)); }
+  return out;
 }
-function narrate(int,val){
-  let m,c;
-  if(int<.12){m='寂静';c='几乎全静——只有空气在响。';}
-  else if(int<.34){ if(val<.4){m='低回';c='低音在铺底，沉静、内省。';} else {m='清浅';c='声音很轻，明亮而克制。';} }
-  else if(int<.64){m='铺展';c='层次在叠加，情绪缓缓展开。';}
-  else { if(val>.5){m='明亮高点';c='能量推到很高、高频明亮——这是很满的一刻。';} else {m='轰鸣';c='低频压上来，力量在轰鸣。';} }
-  return {mood:m,cap:c};
+function renderBand(ab,type,freq){
+  return new Promise((res,rej)=>{ try{
+    const OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+    const oc=new OC(1,ab.length,ab.sampleRate);
+    const src=oc.createBufferSource(); src.buffer=ab;
+    const flt=oc.createBiquadFilter(); flt.type=type; flt.frequency.value=freq; if(type==='bandpass') flt.Q.value=.8;
+    src.connect(flt); flt.connect(oc.destination); src.start(0);
+    oc.startRendering().then(rb=>res(rb.getChannelData(0))).catch(rej);
+  }catch(e){ rej(e); } });
+}
+// 整首预分析：能量 + 三频段(低/中/高) + 亮度比 + 低频比 + 起伏(onset)，全部按本曲动态范围归一化
+async function analyzeBuffer(ab){
+  const sr=ab.sampleRate, fps=30, mono=mixMono(ab);
+  const overall=rmsEnv(mono,sr,fps), N=overall.length;
+  let lowE=null,midE=null,highE=null;
+  try{
+    const [lo,md,hi]=await Promise.all([renderBand(ab,'lowpass',220),renderBand(ab,'bandpass',1000),renderBand(ab,'highpass',3500)]);
+    lowE=rmsEnv(lo,sr,fps); midE=rmsEnv(md,sr,fps); highE=rmsEnv(hi,sr,fps);
+  }catch(e){ /* 兜底：拿不到频段就用中性值 */ }
+  const bright=new Float32Array(N), bass=new Float32Array(N);
+  if(lowE){ for(let i=0;i<N;i++){ const tot=lowE[i]+midE[i]+highE[i]+1e-6; bright[i]=highE[i]/tot; bass[i]=lowE[i]/tot; } }
+  else { bright.fill(.5); bass.fill(.5); }
+  const nOverall=NORM(overall), onset=new Float32Array(N);
+  for(let i=1;i<N;i++) onset[i]=Math.max(0,nOverall[i]-nOverall[i-1]);
+  return { fps, n:N, dur:ab.duration,
+    energy:SMOOTH(nOverall,4), bright:SMOOTH(NORM(bright),5), bass:SMOOTH(NORM(bass),5), onset:SMOOTH(NORM(onset),1) };
+}
+function narrate(int,val,bass,onset){
+  bass=bass||0; onset=onset||0;
+  if(int<.12) return {mood:'寂静',cap:'几乎全静——只有空气在响。'};
+  if(onset>.6 && int>.42) return {mood:'律动',cap:'有节奏的敲击一下下打进来——身体想跟着动。'};
+  if(int<.34) return bass>.5 ? {mood:'低伏',cap:'低音独自铺在底下，沉、稳、内省。'} : (val>.45?{mood:'清浅',cap:'声音很轻，明亮而克制。'}:{mood:'低回',cap:'安静地流动，像在自言自语。'});
+  if(int<.64) return {mood:'铺展',cap:'层次在叠加，情绪缓缓展开。'};
+  return val>.5 ? {mood:'明亮高点',cap:'能量推到很高、高频明亮——很满、很开阔的一刻。'} : {mood:'厚重轰鸣',cap:'低频压上来，沉重而有力量。'};
 }
 
 /* ---------- 步骤切换 ---------- */
@@ -426,20 +446,24 @@ class Engine{
     let a=(Math.sin(x*sc+this.t*.3)+Math.cos(y*sc-this.t*.22)+Math.sin((x+y)*sc*.6+this.t*.15))*Math.PI;
     if(p.structure>.6){ const q=p.structure>.8?Math.PI/2:Math.PI/4; a=Math.round(a/q)*q; } return a; }
   step(sig,dt){
-    const p=this.p; this.curInt=lerp(this.curInt,sig.int,.06); this.t+=dt*(.15+this.curInt*.55+p.energy*.2);
+    const p=this.p;
+    const b=(sig.bass!=null)?sig.bass:.42, on=sig.onset||0;
+    this.flash=Math.max((this.flash||0)*.88, on); const flash=this.flash;
+    this.curInt=lerp(this.curInt,sig.int,.06); this.t+=dt*(.15+this.curInt*.55+p.energy*.2);
     const energy=clamp(this.curInt*.85+p.energy*.2,0,1.3);
-    const speed=.4+energy*2.8+p.energy*.6;
+    const speed=.4+energy*2.8+p.energy*.6+flash*1.4;
     const warmMix=clamp(sig.val*.5+p.warmth*.6,0,1);
     const hue=lerp(232,388,warmMix)%360;   // 绕紫/红半圈，冷蓝→暖橙，避开绿色
     const sat=p.neutral?22:clamp(36+energy*50,28,92);
-    const lit=clamp(46+this.curInt*26+(this.curInt>.8?10:0),40,80);
-    const climax=this.curInt>.78;
+    const lit=clamp(46+this.curInt*24+flash*20+(this.curInt>.8?8:0),40,88);
+    const climax=this.curInt>.78 || flash>.55;
+    const gravY=(b-.42)*0.55 - (sig.val-.5)*0.32;  // 低频→下沉厚重，高频→上扬轻盈
     const x=this.x; x.globalCompositeOperation='source-over';
     x.fillStyle='rgba(5,5,11,'+(p.structure>.6?.16:.09)+')'; x.fillRect(0,0,this.w,this.h);
     x.globalCompositeOperation=climax?'lighter':'source-over';
     x.lineWidth=lerp(2.2,1.0,p.structure)*(climax?1.5:1); x.lineCap=p.structure>.6?'butt':'round';
     for(const pt of this.parts){
-      const a=this.field(pt.x,pt.y); pt.vx+=Math.cos(a)*.6; pt.vy+=Math.sin(a)*.6;
+      const a=this.field(pt.x,pt.y); pt.vx+=Math.cos(a)*.6; pt.vy+=Math.sin(a)*.6+gravY;
       const sp=Math.hypot(pt.vx,pt.vy)||.001; if(sp>speed){pt.vx*=speed/sp;pt.vy*=speed/sp;}
       pt.px=pt.x; pt.py=pt.y; pt.x+=pt.vx; pt.y+=pt.vy; pt.life--;
       if(pt.x<-5||pt.x>this.w+5||pt.y<-5||pt.y>this.h+5||pt.life<0){ const np=this.mk(); np.life=120+Math.random()*180; Object.assign(pt,np); continue; }
@@ -447,7 +471,9 @@ class Engine{
       x.strokeStyle=`hsla(${h2},${sat}%,${lit}%,${climax?.5:.34})`;
       x.beginPath(); x.moveTo(pt.px,pt.py); x.lineTo(pt.x,pt.y); x.stroke();
     }
-    if(climax && Math.random()<.3){ x.fillStyle=`hsla(${hue},${sat}%,${Math.min(lit+15,85)}%,.5)`; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,2+Math.random()*4,0,7); x.fill(); }
+    // 起伏(onset)→节奏迸发：一圈扩散的光环
+    if(flash>.5 && Math.random()<.6){ x.strokeStyle=`hsla(${hue},${sat}%,${Math.min(lit+16,92)}%,${.3*flash})`; x.lineWidth=1.4; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,6+flash*flash*46,0,7); x.stroke(); }
+    if(climax && Math.random()<.3){ x.fillStyle=`hsla(${hue},${sat}%,${Math.min(lit+15,90)}%,.5)`; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,2+Math.random()*4,0,7); x.fill(); }
     x.globalCompositeOperation='source-over';
   }
 }
@@ -466,8 +492,9 @@ function frame(ts){
   if(playing && actx){
     if(mode==='file' && audioBuffer && fileTL){
       let e=actx.currentTime-startTime; e=fileDur?(((e%fileDur)+fileDur)%fileDur):0; prog=fileDur?e/fileDur:0;
-      const idx=clamp(Math.floor(e*fileTL.fps),0,fileTL.n-1); const int=fileTL.energy[idx], val=fileTL.bright[idx];
-      sig=Object.assign({int,val},narrate(int,val));
+      const idx=clamp(Math.floor(e*fileTL.fps),0,fileTL.n-1);
+      const int=fileTL.energy[idx], val=fileTL.bright[idx], bass=fileTL.bass?fileTL.bass[idx]:.5, onset=fileTL.onset?fileTL.onset[idx]:0;
+      sig=Object.assign({int,val,bass,onset},narrate(int,val,bass,onset));
     } else if(curSong){
       const dur=SONGS[curSong].dur; let e=((actx.currentTime-startTime)%dur+dur)%dur; sig=sectionAt(curSong,e); prog=e/dur;
     }
