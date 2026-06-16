@@ -13,15 +13,11 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;height:100%;}
-  body{
-    background:var(--bg); color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
-    line-height:1.65; -webkit-font-smoothing:antialiased; overflow-x:hidden;
-  }
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
   a{color:var(--accent2);text-decoration:none;}
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px 70px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 0 10px;flex-wrap:wrap;}
-  .brand{font-weight:800;font-size:18px;letter-spacing:.01em;}
+  .brand{font-weight:800;font-size:18px;}
   .brand .dot{color:var(--accent2);}
   .back{font-size:13.5px;color:var(--muted);border:1px solid var(--line);padding:6px 13px;border-radius:999px;}
   .back:hover{color:var(--text);border-color:var(--accent);}
@@ -41,7 +37,7 @@
   .sectit{font-size:20px;font-weight:800;margin:24px 0 4px;}
   .sectsub{color:var(--muted);font-size:14.5px;margin:0 0 18px;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;}
-  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 15px;cursor:pointer;transition:.16s;}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:.16s;}
   .pcard:hover{border-color:var(--accent);transform:translateY(-2px);}
   .pcard.sel{border-color:var(--accent2);background:rgba(124,108,255,.10);box-shadow:0 14px 34px -20px var(--accent);}
   .pcard .emo{font-size:26px;}
@@ -52,7 +48,6 @@
   .or::before{left:0;} .or::after{right:0;}
   textarea{width:100%;min-height:96px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;color:var(--text);padding:14px 16px;font-family:inherit;font-size:14.5px;line-height:1.6;resize:vertical;}
   textarea:focus{outline:none;border-color:var(--accent);}
-  /* upload dropzone */
   .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;border:2px dashed var(--line);border-radius:16px;padding:34px 20px;cursor:pointer;transition:.16s;background:var(--card);max-width:640px;}
   .drop:hover,.drop.over{border-color:var(--accent2);background:rgba(124,108,255,.08);transform:translateY(-2px);}
   .dropico{font-size:30px;}
@@ -85,7 +80,7 @@
   .moodtag{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:#fff;background:rgba(124,108,255,.32);border:1px solid rgba(192,107,255,.5);border-radius:999px;padding:3px 12px;margin-bottom:9px;backdrop-filter:blur(6px);}
   .moodtag .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
   .caption{font-size:clamp(15px,2vw,19px);color:#fff;font-weight:600;text-shadow:0 2px 12px rgba(0,0,0,.6);max-width:760px;min-height:1.6em;transition:opacity .35s;}
-  .topbadge{position:absolute;top:14px;left:14px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;backdrop-filter:blur(6px);max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbadge{position:absolute;top:14px;left:14px;font-size:12px;color:#fff;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;backdrop-filter:blur(6px);max-width:62%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .transport{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;}
   .iconbtn{width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;flex:0 0 auto;}
   .iconbtn:hover{filter:brightness(1.1);}
@@ -100,6 +95,8 @@
   @media(max-width:640px){.split{grid-template-columns:1fr;}}
   .note{background:rgba(251,191,36,.07);border-left:3px solid var(--amber);border-radius:0 12px 12px 0;padding:13px 16px;margin-top:26px;font-size:13px;color:var(--muted);}
   .note b{color:var(--text);}
+  .roadmap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px;font-size:13px;color:var(--muted);}
+  .roadmap b{color:var(--text);}
   .hint{color:var(--muted);font-size:13px;margin-top:10px;}
 </style>
 </head>
@@ -127,7 +124,7 @@
   <!-- STEP 1 -->
   <div class="panel active" data-p="1">
     <div class="sectit">① 你是谁？AI 想先认识你</div>
-    <p class="sectsub">选一个最像你的，或者用自己的话写几句——AI 会据此建一个「感知画像」，决定音乐在你眼里长什么样。</p>
+    <p class="sectsub">选一个最像你的，或用自己的话写几句，AI 据此建一个「感知画像」。<span style="color:#c7bcff">（真实产品里这一步可由你的<b>听歌历史</b>自动完成——TME 有这些数据；demo 里先由你来说。）</span></p>
     <div class="grid" id="personas"></div>
     <div class="or">或者，用你自己的话</div>
     <textarea id="freetext" placeholder="比如：我是个安静的人，喜欢下雨天，怕吵，偏爱蓝色和留白……（写什么都行，AI 会读你）"></textarea>
@@ -148,7 +145,7 @@
   <!-- STEP 2 -->
   <div class="panel" data-p="2">
     <div class="sectit">② 上传你想"看见"的歌</div>
-    <p class="sectsub">任何一首歌都行 —— AI 在<strong style="color:#fff">你的浏览器里</strong>实时分析它（不上传服务器、不碰版权）。也可以先用内置样曲试试。</p>
+    <p class="sectsub">任何一首歌都行 —— AI 会在<strong style="color:#fff">你的浏览器里先把整首歌分析完</strong>，再播放（不上传服务器、不碰版权）。也可以先用内置样曲试试。</p>
     <label class="drop" id="drop">
       <input type="file" id="fileInput" accept="audio/*" hidden>
       <div class="dropico">⬆</div>
@@ -172,7 +169,7 @@
   <!-- STEP 3 -->
   <div class="panel" data-p="3">
     <div class="sectit">③ 看见这首歌</div>
-    <p class="sectsub">下面这段抽象影像，是 AI 按<strong style="color:#fff">你的画像</strong>把这首歌翻译出来的。色彩、形态、密度、动势，都随音乐实时的声学特征在变。</p>
+    <p class="sectsub">下面这段抽象影像，是 AI 按<strong style="color:#fff">你的画像</strong>把这首歌翻译出来的。整首歌已先分析、按它自己的动态范围归一化——所以画面跟着<strong style="color:#fff">这首歌自己的起伏</strong>走。</p>
     <div class="stage single">
       <canvas id="mainCanvas"></canvas>
       <div class="topbadge" id="mainBadge">你的视角</div>
@@ -215,7 +212,14 @@
   </div>
 
   <div class="note">
-    <b>关于这个 Demo（诚实说明）：</b>音乐可由你<b>上传</b>（在浏览器内用 Web Audio 实时分析，不上传服务器、不碰版权），或用内置合成样曲；「感知画像」在你本机即时分析、不联网。抽象视觉由音乐<b>实时声学特征</b>（能量/亮度/频率）+ 你的画像参数共同驱动，<b>不是随机噪声</b>。解说字幕：内置样曲为预写语义；<b>上传曲为本机信号级实时描述</b>——真实产品会换成音频语义模型（CLAP / 音频大模型）做更深的语义解说。详见<a href="index.html">可行性报告</a>。
+    <b>关于这个 Demo（诚实说明）：</b>音乐可由你<b>上传</b>（在浏览器内解码、先分析整首再播放，不上传服务器、不碰版权），或用内置合成样曲；「感知画像」在你本机即时分析、不联网。抽象视觉由这首歌<b>自己的能量/亮度起伏（按本曲动态范围归一化）</b>+ 你的画像参数共同驱动，<b>不是随机噪声</b>。<b>诚实的局限</b>：现在用的是信号级特征，还没到"图像=听歌的感受"——真正传达情感需要音频<b>语义</b>模型（CLAP / 音频大模型），这是下一步。详见<a href="index.html">可行性报告</a>。
+  </div>
+  <div class="roadmap">
+    <b>Roadmap（这版没做、但想做的）：</b>
+    ① 接音频语义模型，让画面传达"情感"而非只是"动静"；
+    ② <b>带词 / 纯器乐分两种模式</b>——带词走"AI-MV 式"易懂表达，纯器乐走真正的抽象；
+    ③ 按<b>听歌历史</b>自动建画像（真实产品由 TME 数据驱动，无需自己描述）；
+    ④ 实时（边听边生成）。
   </div>
 
 </div>
@@ -243,51 +247,34 @@ const KW={
 };
 function profileFromText(t){
   const p={warmth:.5,energy:.5,structure:.5,density:.5};
-  for(const k in KW){
-    for(const w of KW[k].pos) if(t.includes(w)) p[k]+=.12;
-    for(const w of KW[k].neg) if(t.includes(w)) p[k]-=.12;
-    p[k]=clamp(p[k],.05,.95);
-  }
+  for(const k in KW){ for(const w of KW[k].pos) if(t.includes(w)) p[k]+=.12; for(const w of KW[k].neg) if(t.includes(w)) p[k]-=.12; p[k]=clamp(p[k],.05,.95); }
   return p;
 }
 function describe(p){
   const seg=(v,lo,mid,hi)=>v>.62?hi:v<.38?lo:mid;
-  return [
-    seg(p.warmth,'偏冷、克制','冷暖之间','偏暖、有温度'),
-    seg(p.energy,'安静、慢','收放有度','跳跃、停不下来'),
-    seg(p.structure,'流动、随性','半流动半秩序','偏爱秩序与几何'),
-    seg(p.density,'喜欢留白','疏密相宜','偏好繁密丰富'),
-  ].join(' · ');
+  return [seg(p.warmth,'偏冷、克制','冷暖之间','偏暖、有温度'),seg(p.energy,'安静、慢','收放有度','跳跃、停不下来'),seg(p.structure,'流动、随性','半流动半秩序','偏爱秩序与几何'),seg(p.density,'喜欢留白','疏密相宜','偏好繁密丰富')].join(' · ');
 }
 let profile=null, profileName='', selectedSong=null;
-
-/* ---------- 播放模式与文件 ---------- */
-let mode='synth';            // 'synth' | 'file'
-let audioBuffer=null, fileSource=null, fileName='', fileDur=0;
+let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null;
 
 /* ---------- 画像卡 ---------- */
 const pc=$('#personas');
 Object.entries(PERSONAS).forEach(([k,v])=>{
   const el=document.createElement('div'); el.className='pcard'; el.dataset.k=k;
   el.innerHTML=`<div class="emo">${v.emo}</div><h3>${v.label}</h3><p>${v.desc}</p>`;
-  el.onclick=()=>{ $$('.pcard').forEach(c=>c.classList.remove('sel')); el.classList.add('sel');
-    $('#freetext').value=''; $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"看 AI 怎么读你'; };
+  el.onclick=()=>{ $$('.pcard').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); $('#freetext').value=''; $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"看 AI 怎么读你'; };
   pc.appendChild(el);
 });
-$('#freetext').addEventListener('input',e=>{
-  if(e.target.value.trim()){ $$('.pcard').forEach(c=>c.classList.remove('sel')); $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"，AI 现场分析你写的'; }
-});
+$('#freetext').addEventListener('input',e=>{ if(e.target.value.trim()){ $$('.pcard').forEach(c=>c.classList.remove('sel')); $('#buildBtn').disabled=false; $('#step1hint').textContent='点"建立画像"，AI 现场分析你写的'; } });
 $('#buildBtn').disabled=true;
 $('#buildBtn').onclick=()=>{
   const sel=$('.pcard.sel'), txt=$('#freetext').value.trim();
   if(sel){ const k=sel.dataset.k; profile={...PERSONAS[k].p}; profileName=PERSONAS[k].label; }
-  else if(txt){ profile=profileFromText(txt); profileName='你'; }
-  else return;
+  else if(txt){ profile=profileFromText(txt); profileName='你'; } else return;
   $('#whoLine').innerHTML=`AI 读到的<b>${profileName==='你'?'你':profileName}</b>：${describe(profile)}`;
   const set=(k)=>{ const pct=Math.round(profile[k]*100); $('#b-'+k).style.width=pct+'%'; $('#t-'+k).textContent=pct+'%'; };
   ['warmth','energy','structure','density'].forEach(set);
-  $('#readout').classList.add('show');
-  $('#youLabel').textContent=(profileName==='你'?'你':profileName)+' · 专属';
+  $('#readout').classList.add('show'); $('#youLabel').textContent=(profileName==='你'?'你':profileName)+' · 专属';
 };
 $('#toSong').onclick=()=>goStep(2);
 $('#backTo1').onclick=()=>goStep(1);
@@ -295,30 +282,57 @@ $('#backTo2').onclick=()=>{stopAudio();goStep(2);};
 $('#backTo3').onclick=()=>{stopAudio();goStep(3);};
 $('#restart').onclick=()=>{stopAudio();goStep(1);};
 
-/* ---------- 样曲选择 ---------- */
+/* ---------- 样曲 ---------- */
 $$('.scard').forEach(c=>c.onclick=()=>{
-  stopAudio();
-  $$('.scard').forEach(x=>x.classList.remove('sel')); c.classList.add('sel');
-  selectedSong=c.dataset.song; mode='synth';
-  $('#mainBadge').textContent='你的视角';
+  stopAudio(); $$('.scard').forEach(x=>x.classList.remove('sel')); c.classList.add('sel');
+  selectedSong=c.dataset.song; mode='synth'; $('#mainBadge').textContent='你的视角';
   setTimeout(()=>goStep(3),180);
 });
 
-/* ---------- 上传 ---------- */
+/* ---------- 上传 + 整首预分析 ---------- */
 const drop=$('#drop'), fileInput=$('#fileInput');
 fileInput.onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
 ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('dragleave',e=>{e.preventDefault();drop.classList.remove('over');});
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) handleFile(f);});
 function handleFile(file){
   stopAudio(); initAudio();
   $('#dropsub').textContent='正在解码 '+file.name+' …';
   file.arrayBuffer().then(b=>actx.decodeAudioData(b)).then(ab=>{
-    audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file';
-    $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）';
-    $('#mainBadge').textContent='你的视角 · '+file.name;
-    setTimeout(()=>goStep(3),250);
-  }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+(err&&err.message||err)+'）'; });
+    $('#dropsub').textContent='正在分析整首歌（在本机）…';
+    setTimeout(()=>{
+      audioBuffer=ab; fileDur=ab.duration; fileName=file.name; mode='file'; fileTL=analyzeBuffer(ab);
+      $('#dropsub').textContent='✓ '+file.name+'（'+Math.round(ab.duration)+'s）已分析完毕';
+      $('#mainBadge').textContent='你的视角 · '+file.name;
+      goStep(3);
+    },50);
+  }).catch(err=>{ $('#dropsub').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; });
+}
+function mixMono(ab){
+  if(ab.numberOfChannels===1) return ab.getChannelData(0);
+  const a=ab.getChannelData(0), b=ab.getChannelData(1), out=new Float32Array(a.length);
+  for(let i=0;i<a.length;i++) out[i]=(a[i]+b[i])*.5; return out;
+}
+function analyzeBuffer(ab){
+  const ch=mixMono(ab), sr=ab.sampleRate, fps=30, hop=Math.max(1,Math.floor(sr/fps)), N=Math.max(1,Math.floor(ch.length/hop));
+  const energy=new Float32Array(N), bright=new Float32Array(N);
+  for(let f=0;f<N;f++){
+    const s0=f*hop; let rms=0, zc=0, prev=0, cnt=0;
+    for(let i=0;i<hop && s0+i<ch.length;i++){ const v=ch[s0+i]; rms+=v*v; if(i>0 && ((v>=0)!==(prev>=0))) zc++; prev=v; cnt++; }
+    energy[f]=Math.sqrt(rms/(cnt||1)); bright[f]=zc/(cnt||1);
+  }
+  // 按本曲动态范围归一化（5%~95% 分位，避免极值拉偏）
+  const norm=(arr)=>{ const s=Array.from(arr).sort((a,b)=>a-b); const lo=s[Math.floor(s.length*.05)]||0, hi=s[Math.floor(s.length*.95)]||1; const d=(hi-lo)||1, out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++) out[i]=clamp((arr[i]-lo)/d,0,1); return out; };
+  const smooth=(arr,k)=>{ const out=new Float32Array(arr.length); for(let i=0;i<arr.length;i++){ let s=0,c=0; for(let j=-k;j<=k;j++){ const x=i+j; if(x>=0&&x<arr.length){s+=arr[x];c++;} } out[i]=s/c; } return out; };
+  return { fps, n:N, dur:ab.duration, energy:smooth(norm(energy),4), bright:smooth(norm(bright),7) };
+}
+function narrate(int,val){
+  let m,c;
+  if(int<.12){m='寂静';c='几乎全静——只有空气在响。';}
+  else if(int<.34){ if(val<.4){m='低回';c='低音在铺底，沉静、内省。';} else {m='清浅';c='声音很轻，明亮而克制。';} }
+  else if(int<.64){m='铺展';c='层次在叠加，情绪缓缓展开。';}
+  else { if(val>.5){m='明亮高点';c='能量推到很高、高频明亮——这是很满的一刻。';} else {m='轰鸣';c='低频压上来，力量在轰鸣。';} }
+  return {mood:m,cap:c};
 }
 
 /* ---------- 步骤切换 ---------- */
@@ -330,7 +344,7 @@ function goStep(n){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ---------- 内置样曲（情绪/结构时间轴） ---------- */
+/* ---------- 内置样曲（情绪时间轴） ---------- */
 const SONGS={
   rain:{ dur:36, sections:[
     {t:0, mood:'孤独', val:.18, int:.25, chord:[57,60,64,69], cap:'钢琴独自进入，一个音符悬在空中——孤独，克制。'},
@@ -348,7 +362,7 @@ const SONGS={
 function sectionAt(song,t){ const s=SONGS[song].sections; let cur=s[0]; for(const sec of s){ if(t>=sec.t) cur=sec; } return cur; }
 
 /* ---------- 音频引擎 ---------- */
-let actx=null, master=null, comp=null, busFilter=null, analyser=null, freqData=null;
+let actx=null, master=null, comp=null, busFilter=null;
 let schedTimer=null, nextNote=0, step16=0, startTime=0, playing=false, curSong=null;
 function initAudio(){
   if(actx) return;
@@ -356,18 +370,14 @@ function initAudio(){
   master=actx.createGain(); master.gain.value=.85;
   comp=actx.createDynamicsCompressor();
   busFilter=actx.createBiquadFilter(); busFilter.type='lowpass'; busFilter.frequency.value=1800;
-  analyser=actx.createAnalyser(); analyser.fftSize=1024; freqData=new Uint8Array(analyser.frequencyBinCount);
-  busFilter.connect(master); master.connect(comp); comp.connect(analyser); analyser.connect(actx.destination);
-  const delay=actx.createDelay(); delay.delayTime.value=.33;
-  const fb=actx.createGain(); fb.gain.value=.26;
-  master.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(comp);
+  busFilter.connect(master); master.connect(comp); comp.connect(actx.destination);
+  const delay=actx.createDelay(); delay.delayTime.value=.33; const fb=actx.createGain(); fb.gain.value=.24;
+  busFilter.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(comp);
 }
-/* -- 合成样曲 -- */
 function voice(freq,t,dur,gain,type){
   const o=actx.createOscillator(), g=actx.createGain();
   o.type=type||'triangle'; o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain,t+.012);
-  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain,t+.012); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
   o.connect(g); g.connect(busFilter); o.start(t); o.stop(t+dur+.05);
 }
 function kick(t){
@@ -378,103 +388,66 @@ function kick(t){
 }
 let lastSecT=-1;
 function scheduler(){
-  const ahead=.12, spb=60/96, step=spb/4;
+  const ahead=.12, step=(60/96)/4;
   while(nextNote < actx.currentTime+ahead){
     const dur=SONGS[curSong].dur; let e=(nextNote-startTime)%dur; if(e<0)e+=dur;
     const sec=sectionAt(curSong,e), tones=sec.chord, int=sec.int, val=sec.val;
     busFilter.frequency.setTargetAtTime(500+val*4200+int*1800, nextNote, .05);
     if(sec.t!==lastSecT){ lastSecT=sec.t; tones.slice(0,4).forEach(m=>voice(midi(m-12),nextNote,3.4,.045,'sine')); }
     const play = int<.32 ? (step16%4===0) : int<.62 ? (step16%2===0) : true;
-    if(play){ let m=tones[step16%tones.length]; if(int>.8 && step16%2===0) m+=12;
-      voice(midi(m),nextNote,int<.5?.5:.32,.11+int*.05,'triangle');
-      if(int>.7) voice(midi(m+7),nextNote,.22,.04,'sine'); }
+    if(play){ let m=tones[step16%tones.length]; if(int>.8 && step16%2===0) m+=12; voice(midi(m),nextNote,int<.5?.5:.32,.11+int*.05,'triangle'); if(int>.7) voice(midi(m+7),nextNote,.22,.04,'sine'); }
     if(int>.55 && step16%4===0) kick(nextNote);
     nextNote+=step; step16++;
   }
 }
 function startSynth(){ curSong=selectedSong; lastSecT=-1; step16=0; startTime=actx.currentTime+.06; nextNote=startTime; schedTimer=setInterval(scheduler,25); }
-/* -- 上传曲：实时分析 -- */
-function startFile(){
-  fileSource=actx.createBufferSource(); fileSource.buffer=audioBuffer; fileSource.loop=true;
-  fileSource.connect(master); startTime=actx.currentTime+.04; fileSource.start(startTime);
-}
-let liveInt=.18, liveVal=.45, liveMood='', liveCap='';
-function analyzeLive(){
-  analyser.getByteFrequencyData(freqData);
-  const n=freqData.length; let sum=0,wsum=0; const bEnd=Math.floor(n*.12), tStart=Math.floor(n*.5);
-  for(let i=0;i<n;i++){ const v=freqData[i]; sum+=v; wsum+=v*i; }
-  const energy=clamp(sum/n/110,0,1.3);
-  const brightness = sum>0 ? clamp((wsum/sum)/n*2.2,0,1) : 0;
-  liveInt=lerp(liveInt,energy,.12); liveVal=lerp(liveVal,brightness,.08);
-  let m,c;
-  if(liveInt<.12){m='寂静';c='几乎全静——只有空气在响。';}
-  else if(liveInt<.34){ if(liveVal<.4){m='低回';c='低音在铺底，沉静、内省。';} else {m='清浅';c='声音很轻，明亮而克制。';} }
-  else if(liveInt<.64){m='铺展';c='层次在叠加，情绪缓缓展开。';}
-  else { if(liveVal>.5){m='明亮爆发';c='能量全开、高频明亮——这是最满的一刻。';} else {m='轰鸣';c='低频压上来，力量在轰鸣。';} }
-  liveMood=m; liveCap=c;
-}
-/* -- 统一播放控制 -- */
+function startFile(){ fileSource=actx.createBufferSource(); fileSource.buffer=audioBuffer; fileSource.loop=true; fileSource.connect(master); startTime=actx.currentTime+.04; fileSource.start(startTime); }
+function setIcons(s){ const a=$('#playBtn'),b=$('#playBtn2'); if(a)a.textContent=s; if(b)b.textContent=s; }
 function startAudio(){
+  stopAudio();                 // 关键：播放前强制清场，杜绝双音源
   initAudio(); if(actx.state==='suspended') actx.resume();
   if(mode==='file' && audioBuffer) startFile(); else startSynth();
-  playing=true; $('#playBtn').textContent='⏸'; $('#playBtn2').textContent='⏸';
+  playing=true; setIcons('⏸');
 }
 function stopAudio(){
-  playing=false; if(schedTimer) clearInterval(schedTimer); schedTimer=null;
-  if(fileSource){ try{fileSource.stop();}catch(e){} fileSource=null; }
-  $('#playBtn').textContent='▶'; $('#playBtn2').textContent='▶';
-}
-function audioLevel(){
-  if(!analyser) return 0; analyser.getByteFrequencyData(freqData);
-  let s=0; const n=Math.min(freqData.length,200); for(let i=0;i<n;i++) s+=freqData[i];
-  return clamp(s/n/180,0,1.2);
+  playing=false;
+  if(schedTimer){ clearInterval(schedTimer); schedTimer=null; }
+  if(fileSource){ try{fileSource.onended=null; fileSource.stop();}catch(e){} try{fileSource.disconnect();}catch(e){} fileSource=null; }
+  setIcons('▶');
 }
 
 /* ---------- 视觉引擎 ---------- */
 class Engine{
-  constructor(canvas,prof){ this.c=canvas; this.x=canvas.getContext('2d'); this.p=prof;
-    this.parts=[]; this.curInt=.2; this.t=Math.random()*1000; this.resize(); }
-  resize(){ const dpr=Math.min(devicePixelRatio||1,2); const r=this.c.getBoundingClientRect();
-    this.w=Math.max(2,r.width); this.h=Math.max(2,r.height);
-    this.c.width=this.w*dpr; this.c.height=this.h*dpr; this.x.setTransform(dpr,0,0,dpr,0,0);
-    this.x.fillStyle='#05050a'; this.x.fillRect(0,0,this.w,this.h); this.seed(); }
-  seed(){ const p=this.p; const N=Math.round(90+p.density*430*(Math.min(this.w*this.h,500000)/500000));
-    this.parts=[]; for(let i=0;i<N;i++) this.parts.push(this.mk()); }
+  constructor(canvas,prof){ this.c=canvas; this.x=canvas.getContext('2d'); this.p=prof; this.parts=[]; this.curInt=.2; this.t=Math.random()*1000; this.resize(); }
+  resize(){ const dpr=Math.min(devicePixelRatio||1,2); const r=this.c.getBoundingClientRect(); this.w=Math.max(2,r.width); this.h=Math.max(2,r.height); this.c.width=this.w*dpr; this.c.height=this.h*dpr; this.x.setTransform(dpr,0,0,dpr,0,0); this.x.fillStyle='#05050a'; this.x.fillRect(0,0,this.w,this.h); this.seed(); }
+  seed(){ const p=this.p; const N=Math.round(90+p.density*430*(Math.min(this.w*this.h,500000)/500000)); this.parts=[]; for(let i=0;i<N;i++) this.parts.push(this.mk()); }
   mk(){ return {x:Math.random()*this.w,y:Math.random()*this.h,px:0,py:0,vx:0,vy:0,life:Math.random()*200}; }
   field(x,y){ const p=this.p; const sc=lerp(.0022,.0011,p.structure)*lerp(1,1.6,this.curInt);
     let a=(Math.sin(x*sc+this.t*.3)+Math.cos(y*sc-this.t*.22)+Math.sin((x+y)*sc*.6+this.t*.15))*Math.PI;
-    if(p.structure>.6){ const q=p.structure>.8?Math.PI/2:Math.PI/4; a=Math.round(a/q)*q; }
-    return a; }
-  step(sig,lvl,dt){
-    const p=this.p; this.curInt=lerp(this.curInt,sig.int,.04); this.t+=dt*(.15+this.curInt*.5+p.energy*.2);
-    const energy=clamp(this.curInt*.6+lvl*.85+p.energy*.15,0,1.4);
-    const speed=.4+energy*2.6+p.energy*.7;
+    if(p.structure>.6){ const q=p.structure>.8?Math.PI/2:Math.PI/4; a=Math.round(a/q)*q; } return a; }
+  step(sig,dt){
+    const p=this.p; this.curInt=lerp(this.curInt,sig.int,.06); this.t+=dt*(.15+this.curInt*.55+p.energy*.2);
+    const energy=clamp(this.curInt*.85+p.energy*.2,0,1.3);
+    const speed=.4+energy*2.8+p.energy*.6;
     const warmMix=clamp(sig.val*.5+p.warmth*.6,0,1);
-    // 绕紫/红那半圈插值：冷=蓝紫(232) → 暖=橙(388%360=28)，避免经过绿色
-    const hue=lerp(232,388,warmMix)%360;
-    const sat=p.neutral?22:clamp(38+energy*48,30,92);
-    const lit=clamp(46+lvl*26+(this.curInt>.8?12:0),40,78);
+    const hue=lerp(232,388,warmMix)%360;   // 绕紫/红半圈，冷蓝→暖橙，避开绿色
+    const sat=p.neutral?22:clamp(36+energy*50,28,92);
+    const lit=clamp(46+this.curInt*26+(this.curInt>.8?10:0),40,80);
     const climax=this.curInt>.78;
     const x=this.x; x.globalCompositeOperation='source-over';
     x.fillStyle='rgba(5,5,11,'+(p.structure>.6?.16:.09)+')'; x.fillRect(0,0,this.w,this.h);
     x.globalCompositeOperation=climax?'lighter':'source-over';
-    const lw=lerp(2.2,1.0,p.structure)*(climax?1.5:1);
-    x.lineWidth=lw; x.lineCap=p.structure>.6?'butt':'round';
+    x.lineWidth=lerp(2.2,1.0,p.structure)*(climax?1.5:1); x.lineCap=p.structure>.6?'butt':'round';
     for(const pt of this.parts){
-      const a=this.field(pt.x,pt.y);
-      pt.vx+=Math.cos(a)*.6; pt.vy+=Math.sin(a)*.6;
+      const a=this.field(pt.x,pt.y); pt.vx+=Math.cos(a)*.6; pt.vy+=Math.sin(a)*.6;
       const sp=Math.hypot(pt.vx,pt.vy)||.001; if(sp>speed){pt.vx*=speed/sp;pt.vy*=speed/sp;}
       pt.px=pt.x; pt.py=pt.y; pt.x+=pt.vx; pt.y+=pt.vy; pt.life--;
-      if(pt.x<-5||pt.x>this.w+5||pt.y<-5||pt.y>this.h+5||pt.life<0){
-        const np=this.mk(); np.life=120+Math.random()*180; Object.assign(pt,np); continue; }
+      if(pt.x<-5||pt.x>this.w+5||pt.y<-5||pt.y>this.h+5||pt.life<0){ const np=this.mk(); np.life=120+Math.random()*180; Object.assign(pt,np); continue; }
       const h2=hue+(Math.sin(pt.life*.05)*16);
       x.strokeStyle=`hsla(${h2},${sat}%,${lit}%,${climax?.5:.34})`;
       x.beginPath(); x.moveTo(pt.px,pt.py); x.lineTo(pt.x,pt.y); x.stroke();
     }
-    if(climax && Math.random()<.3){
-      x.fillStyle=`hsla(${hue},${sat}%,${Math.min(lit+15,85)}%,.5)`;
-      x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,2+Math.random()*4,0,7); x.fill();
-    }
+    if(climax && Math.random()<.3){ x.fillStyle=`hsla(${hue},${sat}%,${Math.min(lit+15,85)}%,.5)`; x.beginPath(); x.arc(Math.random()*this.w,Math.random()*this.h,2+Math.random()*4,0,7); x.fill(); }
     x.globalCompositeOperation='source-over';
   }
 }
@@ -482,28 +455,25 @@ class Engine{
 /* ---------- 渲染循环 ---------- */
 let engMain=null, engDef=null, engYou=null, view='single', lastTS=0;
 function ensureEngines(){
-  if(!engMain) engMain=new Engine($('#mainCanvas'),profile||DEFAULT_PROFILE);
-  else { engMain.p=profile||DEFAULT_PROFILE; engMain.seed(); }
+  if(!engMain) engMain=new Engine($('#mainCanvas'),profile||DEFAULT_PROFILE); else { engMain.p=profile||DEFAULT_PROFILE; engMain.seed(); }
   if(!engDef) engDef=new Engine($('#canvasDefault'),DEFAULT_PROFILE);
-  if(!engYou) engYou=new Engine($('#canvasYou'),profile||DEFAULT_PROFILE);
-  else { engYou.p=profile||DEFAULT_PROFILE; engYou.seed(); }
+  if(!engYou) engYou=new Engine($('#canvasYou'),profile||DEFAULT_PROFILE); else { engYou.p=profile||DEFAULT_PROFILE; engYou.seed(); }
 }
 function setView(v){ view=v; }
 function frame(ts){
   const dt=Math.min((ts-lastTS)/1000||.016,.05); lastTS=ts;
-  let sig={int:.15,val:.42,mood:'',cap:''}, lvl=0, prog=0;
+  let sig={int:.14,val:.42,mood:'',cap:''}, prog=0;
   if(playing && actx){
-    lvl=audioLevel();
-    if(mode==='file' && audioBuffer){
-      analyzeLive(); sig={int:liveInt,val:liveVal,mood:liveMood,cap:liveCap};
+    if(mode==='file' && audioBuffer && fileTL){
       let e=actx.currentTime-startTime; e=fileDur?(((e%fileDur)+fileDur)%fileDur):0; prog=fileDur?e/fileDur:0;
+      const idx=clamp(Math.floor(e*fileTL.fps),0,fileTL.n-1); const int=fileTL.energy[idx], val=fileTL.bright[idx];
+      sig=Object.assign({int,val},narrate(int,val));
     } else if(curSong){
-      const dur=SONGS[curSong].dur; let e=((actx.currentTime-startTime)%dur+dur)%dur;
-      sig=sectionAt(curSong,e); prog=e/dur;
+      const dur=SONGS[curSong].dur; let e=((actx.currentTime-startTime)%dur+dur)%dur; sig=sectionAt(curSong,e); prog=e/dur;
     }
   }
-  if(view==='single' && engMain) engMain.step(sig,lvl,dt);
-  if(view==='split'){ if(engDef) engDef.step(sig,lvl,dt); if(engYou) engYou.step(sig,lvl,dt); }
+  if(view==='single' && engMain) engMain.step(sig,dt);
+  if(view==='split'){ if(engDef) engDef.step(sig,dt); if(engYou) engYou.step(sig,dt); }
   if(playing){
     const show=$('#capToggle').checked;
     $('#moodText').textContent=sig.mood||'—'; $('#moodText2').textContent=sig.mood||'—';
