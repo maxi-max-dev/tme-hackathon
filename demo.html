@@ -170,7 +170,7 @@ const midi=m=>440*Math.pow(2,(m-69)/12);
 let mode='synth', audioBuffer=null, fileSource=null, fileName='', fileDur=0, fileTL=null, selectedSong=null;
 let rawAudioBytes=null, rawAudioMime='audio/mpeg';
 const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite']; // 依次尝试，跳过没免费额度的
-const CAP_PROMPT='你是帮助听障者"读懂"音乐的解说员。请用中文写一段 150 字以内的解说，描述这段音乐的：情绪、张力的起伏（从安静到爆发等）、像什么画面或场景、乐器/声响的质感。目标是让一个听不见的人也能在脑海里"感受到"这首歌。要求：具体、有画面感；不要写歌词、不要逐句翻译、不要泛泛而谈（如"很好听""很有感染力"）。直接给解说正文，不要前缀。';
+const CAP_PROMPT='你是帮助听障者"读懂"音乐的解说员。请仔细听这段音频本身（乐器、节奏、调性、力度、情绪的起伏），基于你真实听到的来写，不要套模板。用中文写一段 120 字以内的解说，描述：情绪、张力的起伏（从安静到爆发等）、像什么画面或场景、乐器/声响的质感。让一个听不见的人也能在脑海里"感受到"这首歌。要求具体、有画面感；不要写歌词、不要逐句翻译、不要泛泛而谈（如"很好听""很有感染力"）。直接给解说正文，不要前缀、不要解释你的思路。';
 let songEssence=null, essMoodStr='';
 let _beatPtr=0, _lastE=0;
 const SAMPLE_PROFILE={warmth:.6,energy:.5,structure:.4,density:.5};
@@ -392,7 +392,7 @@ $('#captionBtn').onclick=async()=>{
   if(!key){ $('#captionHint').textContent='👇 先在下面填入你的 Gemini key（AIza...）再点解说'; $('#keyInput').focus(); return; }
   localStorage.setItem('geminiKey',key); refreshKeyUI();
   const box=$('#aiCaption'); box.classList.add('show');
-  const body={contents:[{parts:[{inline_data:{mime_type:rawAudioMime||'audio/mpeg',data:u8ToB64(rawAudioBytes)}},{text:CAP_PROMPT}]}],generationConfig:{temperature:0.9,maxOutputTokens:400}};
+  const body={contents:[{parts:[{inline_data:{mime_type:rawAudioMime||'audio/mpeg',data:u8ToB64(rawAudioBytes)}},{text:CAP_PROMPT}]}],generationConfig:{temperature:0.9,maxOutputTokens:2048}};
   let lastErr='';
   for(const model of GEMINI_MODELS){
     box.innerHTML='<div class="tag">AI 解说 · '+model+' 生成中…</div>正在听这首歌、写解说…';
