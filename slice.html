@@ -3,67 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>最小竖切片 · 理解 → 实时呈现</title>
+<title>读懂这首歌 · 理解 → 实时解读</title>
 <style>
-  :root{ --bg:#0c0c11; --card:#181820; --line:#2a2a37; --text:#ececf3; --muted:#9696ac; --accent:#7c6cff; --accent2:#c06bff; }
+  :root{ --line:rgba(255,255,255,.14); --text:#f2f2f7; --muted:#a6a6bd; --accent:#7c6cff; --accent2:#c06bff; }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.6;}
-  .wrap{max-width:880px;margin:0 auto;padding:28px 20px 60px;}
-  h1{font-size:22px;margin:0 0 4px;}
-  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;}
-  .stage{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;}
-  canvas{display:block;width:100%;height:100%;}
-  .modetag{position:absolute;top:12px;left:12px;font-size:12px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;backdrop-filter:blur(6px);}
-  .capwrap{position:absolute;left:0;right:0;bottom:0;padding:42px 20px 16px;background:linear-gradient(0deg,rgba(0,0,0,.72),transparent);pointer-events:none;}
-  .caption{font-size:clamp(15px,2.2vw,20px);font-weight:600;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.6);min-height:1.5em;}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;}
-  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:11px 20px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;}
-  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
-  .seek{flex:1;min-width:160px;height:6px;border-radius:99px;background:rgba(255,255,255,.08);position:relative;overflow:hidden;}
+  html,body{margin:0;height:100%;}
+  body{color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;background:#0a0a0f;overflow-x:hidden;}
+  #bg{position:fixed;inset:0;z-index:-1;background:radial-gradient(130% 100% at 50% 8%,#1a1730,#0a0a12 70%,#06060a);transition:background .25s linear;}
+  .wrap{max-width:900px;margin:0 auto;padding:22px 20px 60px;min-height:100%;display:flex;flex-direction:column;}
+  .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .brand{font-weight:800;font-size:16px;opacity:.9;}
+  #summary{color:var(--muted);font-size:14.5px;max-width:640px;text-align:right;}
+  #summary b{color:var(--text);font-weight:600;}
+  /* 主角：此刻文字 */
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:42vh;padding:18px 6px 6px;}
+  #label{display:inline-block;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent2);border:1px solid rgba(192,107,255,.4);background:rgba(192,107,255,.08);border-radius:999px;padding:4px 14px;margin-bottom:18px;transition:opacity .35s ease;min-height:26px;}
+  #nowText{font-size:clamp(24px,4.6vw,46px);font-weight:750;line-height:1.32;max-width:18em;letter-spacing:.01em;background:linear-gradient(180deg,#fff,#e3dcff);-webkit-background-clip:text;background-clip:text;color:transparent;transition:opacity .35s ease;min-height:1.4em;}
+  /* 控制 */
+  .transport{display:flex;align-items:center;gap:12px;margin:8px 0 6px;flex-wrap:wrap;}
+  .iconbtn{width:50px;height:50px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center;flex:0 0 auto;}
+  .iconbtn:hover{filter:brightness(1.1);}
+  .seek{flex:1;min-width:160px;height:6px;border-radius:99px;background:rgba(255,255,255,.1);position:relative;overflow:hidden;}
   .seek i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));}
-  .status{color:var(--muted);font-size:13px;margin-top:12px;}
-  input{background:#14141c;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px 12px;font-family:inherit;font-size:13px;}
-  .seglist{margin-top:18px;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;}
-  .seglist .h,.seglist .r{display:grid;grid-template-columns:64px 90px 80px 1fr;gap:8px;padding:8px 12px;align-items:center;}
-  .seglist .h{background:#14141c;color:var(--muted);font-weight:600;}
-  .seglist .r{border-top:1px solid var(--line);}
-  .seglist .r.act{background:rgba(124,108,255,.12);}
-  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(255,255,255,.2);vertical-align:middle;margin-right:6px;}
-  .pill{font-size:11.5px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);}
-  .note{margin-top:18px;font-size:12.5px;color:var(--muted);border-left:3px solid var(--accent);padding:8px 12px;background:rgba(124,108,255,.06);border-radius:0 10px 10px 0;}
-  code{background:#14141c;padding:1px 6px;border-radius:5px;font-size:12px;}
+  .btn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.solid{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;font-weight:700;}
+  /* 结构弧 */
+  .arcwrap{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:rgba(0,0,0,.22);padding:10px 12px 4px;}
+  .arclabel{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+  #arc{display:block;width:100%;height:104px;}
+  /* AI / key / status */
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;}
+  input{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:10px 12px;font-family:inherit;font-size:13px;}
+  .status{color:var(--muted);font-size:12.5px;margin-top:10px;}
+  .hint{color:var(--muted);font-size:12px;margin-top:6px;}
+  a{color:var(--accent2);text-decoration:none;}
 </style>
 </head>
 <body>
+<div id="bg"></div>
 <div class="wrap">
-  <h1>最小竖切片 · 理解 → 实时呈现</h1>
-  <p class="sub">一条链：DSP 切段 + 每段能量 → AI 每段输出 <code>{visual_mode, color, text}</code> → 实时渲染器按段落表驱动画面（仅 drift / burst / settle 三态）+ 同步显示文字。</p>
 
+  <div class="top">
+    <div class="brand">读懂这首歌 <span style="color:var(--accent2)">·</span> See-the-Song</div>
+    <div id="summary">载入中…</div>
+  </div>
+
+  <!-- 主角：此刻文字 -->
   <div class="stage">
-    <canvas id="cv"></canvas>
-    <div class="modetag" id="modeTag">—</div>
-    <div class="capwrap"><div class="caption" id="cap">载入中…</div></div>
+    <div id="label">—</div>
+    <div id="nowText">载入一首歌，跟着播放「读」它</div>
   </div>
 
-  <div class="row">
-    <button class="btn" id="play">▶ 播放</button>
-    <label class="btn ghost" id="upBtn" style="cursor:pointer">⬆ 上传我的歌<input id="file" type="file" accept="audio/*" hidden></label>
+  <div class="transport">
+    <button class="iconbtn" id="play">▶</button>
     <div class="seek" id="seek"><i></i></div>
+    <label class="btn" style="cursor:pointer">⬆ 上传我的歌<input id="file" type="file" accept="audio/*" hidden></label>
+  </div>
+
+  <!-- 结构 / 情绪弧 -->
+  <div class="arcwrap">
+    <div class="arclabel">整首的形状 · 情绪强度弧（标签＝段落角色，曲线＝强度，竖线＝你在哪）</div>
+    <canvas id="arc"></canvas>
   </div>
 
   <div class="row">
-    <button class="btn ghost" id="aiBtn">✦ 让 AI 理解（每段填 mode/color/text）</button>
+    <button class="btn solid" id="aiBtn">✦ 让 AI 读懂这首歌（写解读 + 情绪弧）</button>
     <input id="key" type="password" placeholder="Gemini key（AIza…，只存你浏览器）" style="flex:1;min-width:220px;">
   </div>
   <div class="status" id="status">—</div>
+  <div class="hint">没 key 也能跑（本机先给个粗读）。key 只存你浏览器、只发 Google，不进代码。去 <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> 免费拿。</div>
 
-  <div class="seglist" id="seglist"></div>
-
-  <div class="note">
-    <b>验收用：</b>不需要 key 也会先用 DSP 兜底跑起来。打开控制台改一段，画面应当<b>立刻</b>对应变：<br>
-    <code>__set(2,'burst','#ff3366')</code> — 把第 2 段改成 burst + 红色；<code>__set(2,'drift','#3aa0ff')</code> 改回。<br>
-    <code>__selfcheck()</code> 看当前段落表 + 这一帧实际用的 mode/color（证明视觉读的就是这张表）。
-  </div>
 </div>
 
 <script>
@@ -71,18 +81,13 @@
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,t)=>a+(b-a)*t;
+const lerpHue=(a,b,t)=>{ const d=((b-a+540)%360)-180; return (a+d*t+360)%360; };
 const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 
 const SONG_URL='assets/epic.mp3', SONG_NAME='Heroic Age';
-const MODES=['drift','burst','settle'];
+let SEGMENTS=[], SONG={summary:''}, DUR=0, rawBytes=null, rawMime='audio/mpeg';
 
-/* ---------- 颜色 ---------- */
-function hexToHsl(hex){ hex=(hex||'').replace('#','').trim(); if(hex.length===3)hex=hex.split('').map(c=>c+c).join(''); if(!/^[0-9a-fA-F]{6}$/.test(hex))return{h:250,s:55,l:55}; const r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360;} const l=(mx+mn)/2,s=d?d/(1-Math.abs(2*l-1)):0; return{h,s:s*100,l:l*100}; }
-function hslToHex(h,s,l){ h=((h%360)+360)%360;s=clamp(s,0,100)/100;l=clamp(l,0,100)/100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));};const hx=v=>Math.round(v*255).toString(16).padStart(2,'0');return'#'+hx(f(0))+hx(f(8))+hx(f(4)); }
-function lerpHue(a,b,t){ const d=((b-a+540)%360)-180; return (a+d*t+360)%360; }
-function normHex(c){ c=(c||'').trim(); if(c&&c[0]!=='#')c='#'+c; return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c)?c:null; }
-
-/* ---------- DSP（复用最小版：能量包络 + novelty 切段 + 段能量） ---------- */
+/* ================= 理解管线（复用：DSP 切段 + 每段能量） ================= */
 const NORM=arr=>{const s=Array.from(arr).sort((a,b)=>a-b);const lo=s[Math.floor(s.length*.05)]||0,hi=s[Math.floor(s.length*.95)]||1,d=(hi-lo)||1,o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++)o[i]=clamp((arr[i]-lo)/d,0,1);return o;};
 const SMOOTH=(arr,k)=>{const o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++){let s=0,c=0;for(let j=-k;j<=k;j++){const x=i+j;if(x>=0&&x<arr.length){s+=arr[x];c++;}}o[i]=s/c;}return o;};
 function mixMono(ab){ if(ab.numberOfChannels===1)return ab.getChannelData(0); const a=ab.getChannelData(0),b=ab.getChannelData(1),o=new Float32Array(a.length); for(let i=0;i<a.length;i++)o[i]=(a[i]+b[i])*.5; return o; }
@@ -99,214 +104,133 @@ function segment(tl){
   bounds.push(n);
   const segs=[];
   for(let k=0;k<bounds.length-1;k++){ const s=bounds[k],e=Math.max(bounds[k]+1,bounds[k+1]); let m=0,c=0; for(let i=s;i<e;i++){m+=E[i];c++;} m/=c||1;
-    segs.push({ start:s/fps, end:e/fps, energy:+m.toFixed(3), visual_mode:'', color:'', text:'' }); }
+    segs.push({ start:s/fps, end:e/fps, energy:+m.toFixed(3), now:'', label:'', intensity:+m.toFixed(3), mood:'' }); }
   return segs;
 }
-// 无 key 时的兜底：用能量推 mode/color/text，让链先跑起来
-function dspFill(segs){
-  segs.forEach((sg,i)=>{
-    const e=sg.energy, prev=i>0?segs[i-1].energy:e;
-    sg.visual_mode = e>0.6?'burst' : (prev-e>0.12?'settle':'drift');
-    const hue=lerp(232,388,clamp(e,0,1))%360;
-    sg.color = hslToHex(hue, clamp(46+e*40,40,92), clamp(34+e*16,30,56));
-    sg.text = e<0.25?'安静地铺着，几乎留白。' : e<0.55?'层次缓缓叠加，往上走。' : '能量推到很高，满而有力。';
+// 无 key 时的本机粗读：给每段一个大白话 now / label / intensity / mood，让三层先转起来
+function dspFill(){
+  const n=SEGMENTS.length; if(!n)return; let maxI=0; SEGMENTS.forEach((s,i)=>{if(s.energy>SEGMENTS[maxI].energy)maxI=i;});
+  SEGMENTS.forEach((s,i)=>{ const e=s.energy, prev=i>0?SEGMENTS[i-1].energy:e;
+    s.intensity=e;
+    s.label = i===0?'开场':i===n-1?'收束':i===maxI?'高潮':(e>prev+0.08?'渐强':e<prev-0.08?'回落':'铺垫');
+    s.now = e<0.2?'很轻，几乎只剩空气和余白。':e<0.45?'声音慢慢铺开，像在酝酿。':e<0.7?'层层叠上来，情绪在往上走。':'全推到最满，最用力的一刻。';
+    s.mood = e<0.3?'冷·安静':e<0.6?'暖·期待':'暖·激动';
   });
+  SONG.summary='本机粗读：一条由弱到强、再收束的情绪线（填 key 让 AI 真正读懂）';
 }
 
-/* ---------- 段落表（唯一真相） ---------- */
-let SEGMENTS=[], DUR=0, rawBytes=null, rawMime='audio/mpeg';
-function segIndexAt(t){ if(!SEGMENTS.length)return -1; let i=0; for(let k=0;k<SEGMENTS.length;k++){ if(t>=SEGMENTS[k].start)i=k; } return i; }
-function colorStateAt(t){ // 视觉层从同一张表取：色彩跨段插值；mode 在边界硬切
-  const i=segIndexAt(t); if(i<0)return{hue:250,sat:55,light:50,mode:'drift',idx:-1};
-  const cur=SEGMENTS[i]; const XF=1.2; let mix=0,nx=cur;
-  if(i<SEGMENTS.length-1&&(cur.end-t)<XF){ mix=clamp((XF-(cur.end-t))/XF,0,1); nx=SEGMENTS[i+1]; }
-  const a=hexToHsl(cur.color),b=hexToHsl(nx.color);
-  return { hue:lerpHue(a.h,b.h,mix), sat:lerp(a.s,b.s,mix), light:lerp(a.l,b.l,mix), mode:cur.visual_mode||'drift', idx:i };
-}
+/* ================= 情绪 → 背景色 ================= */
+// 暖/冷 前缀先定冷暖大方向，情绪词在该半区里挑具体色相
+const WARM=[[/紧张|焦虑|压抑/,8],[/激动|燃|亢奋|爆发|热血|激昂|壮烈/,20],[/喜悦|欢快|快乐|俏皮|明亮|轻快/,46],[/温暖|温柔|希望|憧憬|期待|庄严|柔/,34]];
+const COOL=[[/平静|宁静|安静|放松|舒缓/,190],[/忧伤|悲|孤独|失落|惆怅|思念/,222],[/神秘|诡异|阴郁|黑暗|悬疑/,266],[/梦幻|空灵|缥缈|辽阔|开阔/,284]];
+function moodHue(m){ m=m||''; const warm=/暖|warm|热/.test(m), cool=/冷|cold|凉/.test(m);
+  if(cool){ for(const [re,h] of COOL) if(re.test(m)) return h; return 212; }
+  if(warm){ for(const [re,h] of WARM) if(re.test(m)) return h; return 34; }
+  for(const [re,h] of WARM) if(re.test(m)) return h; for(const [re,h] of COOL) if(re.test(m)) return h; return 258; }
+function moodColor(m,inten){ return {h:moodHue(m), s:clamp(28+inten*48,24,84), l:clamp(9+inten*15,7,26)}; }
 
-/* ---------- 音频（含实时能量 analyser） ---------- */
-let actx=null,master=null,analyser=null,td=null,source=null,startTime=0,playing=false,buf=null;
+/* ================= 音频（复用） ================= */
+let actx=null,master=null,analyser=null,td=null,source=null,startTime=0,playing=false,buf=null,lastE=0;
 function initAudio(){ if(actx)return; actx=new (window.AudioContext||window.webkitAudioContext)(); master=actx.createGain();master.gain.value=.9; analyser=actx.createAnalyser();analyser.fftSize=1024; td=new Uint8Array(analyser.fftSize); master.connect(analyser); analyser.connect(actx.destination); }
 function liveEnergy(){ if(!analyser)return 0; analyser.getByteTimeDomainData(td); let s=0; for(let i=0;i<td.length;i++){const x=(td[i]-128)/128;s+=x*x;} return Math.sqrt(s/td.length); }
-function start(){ stop(); initAudio(); if(actx.state==='suspended')actx.resume(); source=actx.createBufferSource(); source.buffer=buf; source.loop=true; source.connect(master); startTime=actx.currentTime+.04; source.start(startTime); playing=true; $('#play').textContent='⏸ 暂停'; }
-function stop(){ playing=false; if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}source=null;} $('#play').textContent='▶ 播放'; }
+function start(){ stop(); initAudio(); if(actx.state==='suspended')actx.resume(); source=actx.createBufferSource(); source.buffer=buf; source.loop=true; source.connect(master); startTime=actx.currentTime+.04; source.start(startTime); playing=true; $('#play').textContent='⏸'; }
+function stop(){ playing=false; if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}source=null;} $('#play').textContent='▶'; }
 
-/* ---------- 实时渲染器：三种"被感觉到的现象"，靠形态(运动几何)区分而非颜色 ----------
-   color 仍由段落表插值驱动(保留)；mode 决定空间行为；intensity 接到运动的烈度/质感。
-   全屏、无中心发射器；段间过渡=一个有方向的动作。 */
-const cv=$('#cv'), ctx=cv.getContext('2d');
-let W=2,H=2,parts=[],curI=.2,tAcc=Math.random()*1000;
-let windAng=0, transMode='', transT=0; const TRANS_DUR=0.62;
-function resize(){ const dpr=Math.min(devicePixelRatio||1,2),r=cv.getBoundingClientRect(); W=Math.max(2,r.width);H=Math.max(2,r.height); cv.width=W*dpr;cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle='#05050a';ctx.fillRect(0,0,W,H); seedParts(); }
-function seedParts(){ const N=Math.min(460,Math.max(160,Math.round(W*H/4200))); parts=[]; for(let i=0;i<N;i++)parts.push(mkPart()); }
-function mkPart(){ return {x:Math.random()*W,y:Math.random()*H,px:0,py:0,vx:0,vy:0,seed:Math.random(),fade:1}; }
-// 伪噪声角(湍流/漂移共用)；seededAng 让每个 burst 段的风向不同(不对称)
-function noise(x,y,t,s){ return (Math.sin(x*s+t)+Math.cos(y*s-t*0.8)+Math.sin((x-y)*s*0.7+t*0.5))*Math.PI; }
-function seededAng(i){ return ((i<0?0:i)*2.39996)%(Math.PI*2); }
+/* ================= 呈现层 1：此刻文字（主角，淡入淡出） ================= */
+let _shown=-1, _swapTimer=null;
+function showNow(idx){
+  if(idx===_shown)return; _shown=idx; const seg=SEGMENTS[idx];
+  const el=$('#nowText'), lb=$('#label'); el.style.opacity=0; lb.style.opacity=0;
+  clearTimeout(_swapTimer);
+  _swapTimer=setTimeout(()=>{ el.textContent=seg?(seg.now||'…'):'…'; lb.textContent=seg?(seg.label||''):''; el.style.opacity=1; lb.style.opacity=1; },300);
+}
+function setNowImmediate(idx){ _shown=idx; const seg=SEGMENTS[idx]; $('#nowText').textContent=seg?(seg.now||'…'):'…'; $('#label').textContent=seg?(seg.label||''):''; $('#nowText').style.opacity=1; $('#label').style.opacity=1; }
 
-/* —— 段间过渡 = 有方向的动作(对齐边界触发) —— */
-function onEnter(newMode){
-  transMode=newMode; transT=TRANS_DUR; const I=Math.max(curI,.25);
-  for(const p of parts) p.fade=1;                              // 复活 settle 时淡掉的粒子
-  if(newMode==='burst'){                                       // 撕开：全体被骤然甩向风向
-    windAng=seededAng(lastIdx);
-    for(const p of parts){ const k=7+I*9, j=0.4+Math.random(); p.vx+=Math.cos(windAng)*k*j; p.vy+=Math.sin(windAng)*k*j; }
-  } else if(newMode==='settle'){                               // 松手坠落：抹平横向/上行，一起开始下沉
-    for(const p of parts){ p.vx*=0.25; p.vy=Math.abs(p.vy)*0.3 + 1.4 + I*2.2; }
-  } else {                                                     // 化开：就地散开再慢下来(非中心)
-    for(const p of parts){ const a=noise(p.x,p.y,tAcc,0.003); p.vx+=Math.cos(a)*1.4+(Math.random()-.5); p.vy+=Math.sin(a)*1.4+(Math.random()-.5); }
-  }
+/* ================= 呈现层 2：结构 / 情绪弧 ================= */
+const arc=$('#arc'); let actx2=arc.getContext('2d'), aW=2,aH=2;
+function resizeArc(){ const dpr=Math.min(devicePixelRatio||1,2), r=arc.getBoundingClientRect(); aW=Math.max(2,r.width); aH=Math.max(2,r.height); arc.width=aW*dpr; arc.height=aH*dpr; actx2.setTransform(dpr,0,0,dpr,0,0); }
+function drawArc(e,curIdx){
+  const c=actx2; c.clearRect(0,0,aW,aH); if(!SEGMENTS.length||!DUR)return;
+  const baseY=aH-22, amp=aH-44, hue=Math.round(bgH);
+  const xf=t=>(t/DUR)*aW, vof=s=>clamp(s.intensity!=null?s.intensity:s.energy,0,1);
+  const line=[{x:0,v:vof(SEGMENTS[0])}].concat(SEGMENTS.map(s=>({x:xf((s.start+s.end)/2),v:vof(s)}))).concat([{x:aW,v:vof(SEGMENTS[SEGMENTS.length-1])}]);
+  // 面积
+  c.beginPath(); c.moveTo(0,baseY); line.forEach(p=>c.lineTo(p.x,baseY-p.v*amp)); c.lineTo(aW,baseY); c.closePath();
+  c.fillStyle='hsla('+hue+',70%,62%,.16)'; c.fill();
+  // 曲线
+  c.beginPath(); line.forEach((p,i)=> i?c.lineTo(p.x,baseY-p.v*amp):c.moveTo(p.x,baseY-p.v*amp)); c.strokeStyle='hsla('+hue+',80%,72%,.9)'; c.lineWidth=2; c.stroke();
+  // 段落分隔 + 标签
+  c.textAlign='center'; c.textBaseline='alphabetic';
+  SEGMENTS.forEach((s,i)=>{ const x0=xf(s.start),x1=xf(s.end);
+    if(i>0){ c.strokeStyle='rgba(255,255,255,.08)'; c.lineWidth=1; c.beginPath();c.moveTo(x0,6);c.lineTo(x0,baseY);c.stroke(); }
+    if(i===curIdx){ c.fillStyle='hsla('+hue+',60%,55%,.16)'; c.fillRect(x0,6,Math.max(1,x1-x0),baseY-6); }
+    c.fillStyle=i===curIdx?'#fff':'rgba(255,255,255,.42)'; c.font=(i===curIdx?'700 ':'500 ')+'12px -apple-system,sans-serif';
+    const lab=s.label||''; if((x1-x0)>26||i===curIdx) c.fillText(lab,(x0+x1)/2,aH-6);
+  });
+  // 播放头 + 点
+  const px=xf(e); c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath();c.moveTo(px,4);c.lineTo(px,baseY);c.stroke();
+  const cur=SEGMENTS[curIdx]; const v=cur?vof(cur):0; c.fillStyle='#fff'; c.beginPath();c.arc(px,baseY-v*amp,3.5,0,7);c.fill();
 }
 
-window.__lastRender=null;
-function render(sig,dt){
-  curI=lerp(curI,sig.intensity,.12); tAcc+=dt*(.2+curI*.6);
-  const I=clamp(curI,0,1.3), mode=sig.mode, hue=sig.hue, sat=clamp(sig.sat,32,96), L=sig.light;
-  if(transT>0) transT=Math.max(0,transT-dt);
-  window.__lastRender={segIdx:sig.idx,mode,hue:Math.round(hue),color0:SEGMENTS[sig.idx]&&SEGMENTS[sig.idx].color};
-  // 拖尾节奏配质感：burst 清得快=脆利流线；drift 留得久=绵雾；settle 居中
-  const fade=mode==='burst'?0.17:mode==='drift'?0.085:0.14;
-  ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(5,5,11,'+fade+')'; ctx.fillRect(0,0,W,H);
-  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
-  if(mode==='burst') drawBurst(I,hue,sat,L);
-  else if(mode==='settle') drawSettle(I,hue,sat,L,dt);
-  else drawDrift(I,hue,sat,L);
-  ctx.globalCompositeOperation='source-over';
-}
+/* ================= 呈现层 3：氛围背景（平滑渐变） ================= */
+let bgH=255,bgS=22,bgL=11;
+function setBg(){ const h=Math.round(bgH),s=Math.round(bgS),l=Math.round(bgL); $('#bg').style.background='radial-gradient(130% 100% at 50% 6%, hsl('+h+' '+s+'% '+(l+7)+'%), hsl('+((h+24)%360)+' '+s+'% '+Math.max(4,l-2)+'%) 68%, hsl('+((h+24)%360)+' '+Math.max(10,s-10)+'% 4%))'; }
 
-/* drift —— 失重的尘/雪/雾：全屏各向同性慢漂、环绕回绕，柔光圆点(无线、无方向、无中心) */
-function drawDrift(I,hue,sat,L){
-  const cap=0.22+I*0.55, soft=0.10+I*0.34;
-  for(const p of parts){
-    const a=noise(p.x,p.y,tAcc*0.22,0.0016);
-    p.vx+=Math.cos(a)*0.05; p.vy+=Math.sin(a)*0.05+0.004;        // 极轻下沉=雪/尘
-    p.vx*=0.93; p.vy*=0.93;
-    const sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0)p.x+=W; else if(p.x>W)p.x-=W; if(p.y<0)p.y+=H; else if(p.y>H)p.y-=H;  // 环绕=全屏均匀
-    const r=1.0+p.seed*1.2;
-    ctx.fillStyle='hsla('+(hue+p.seed*20-10)+','+sat+'%,'+clamp(L+22,55,86)+'%,'+soft+')';
-    ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
-  }
-}
-
-/* burst —— 有风向+湍流的洪流：粒子被甩成脆利流线、从上风边横扫入场(有方向、不对称、无中心) */
-function drawBurst(I,hue,sat,L){
-  const cap=3+I*10;
-  for(const p of parts){
-    const ta=noise(p.x,p.y,tAcc*1.1,0.0042), wf=0.5+I*1.3, tf=0.4+I*1.8;
-    p.vx+=Math.cos(windAng)*wf+Math.cos(ta)*tf;
-    p.vy+=Math.sin(windAng)*wf+Math.sin(ta)*tf;
-    const sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
-    p.px=p.x;p.py=p.y; p.x+=p.vx; p.y+=p.vy;
-    if(p.x<-10||p.x>W+10||p.y<-10||p.y>H+10){ respawnUpwind(p); continue; }
-    const v=Math.hypot(p.vx,p.vy);
-    ctx.strokeStyle='hsla('+hue+','+sat+'%,'+clamp(L+18+v*2,52,92)+'%,'+(0.24+I*0.42)+')';
-    ctx.lineWidth=0.8+Math.min(v*0.18,2.4);
-    ctx.beginPath();ctx.moveTo(p.px,p.py);ctx.lineTo(p.x,p.y);ctx.stroke();
-  }
-  if(transMode==='burst'&&transT>0){                            // 入场激波：一道亮 front 沿风向横扫
-    const f=1-transT/TRANS_DUR, diag=Math.hypot(W,H);
-    const cxp=W/2+Math.cos(windAng)*(-0.55+f*1.25)*diag, cyp=H/2+Math.sin(windAng)*(-0.55+f*1.25)*diag;
-    const px=-Math.sin(windAng), py=Math.cos(windAng);
-    ctx.strokeStyle='hsla('+hue+','+sat+'%,92%,'+(0.55*(1-f))+')'; ctx.lineWidth=3+(1-f)*7;
-    ctx.beginPath();ctx.moveTo(cxp-px*diag,cyp-py*diag);ctx.lineTo(cxp+px*diag,cyp+py*diag);ctx.stroke();
-  }
-}
-function respawnUpwind(p){                                       // 满屏重生→洪流铺满整个画面(非边缘细流)
-  p.x=Math.random()*W; p.y=Math.random()*H;
-  p.vx=Math.cos(windAng)*2.4; p.vy=Math.sin(windAng)*2.4; p.px=p.x; p.py=p.y; p.seed=Math.random();
-}
-
-/* settle —— 归于平静：下坠+减速+淡出，慢到停(向下的方向、越强沉得越彻底) */
-function drawSettle(I,hue,sat,L,dt){
-  const grav=0.05+I*0.14, cap=0.7+I*1.5;
-  for(const p of parts){
-    p.vy+=grav; p.vx+=Math.cos(noise(p.x,p.y,tAcc*0.3,0.002))*0.03;
-    p.vx*=0.95; p.vy*=0.99;
-    const sp0=Math.hypot(p.vx,p.vy)||.001; if(sp0>cap){p.vx*=cap/sp0;p.vy*=cap/sp0;}
-    p.px=p.x;p.py=p.y; p.x+=p.vx; p.y+=p.vy;
-    const slow=Math.hypot(p.vx,p.vy);
-    if(slow<0.28||p.y>H-2){ p.fade-=dt*(0.5+I*1.4); }           // 接近静止→淡出；I 越大淡得越快=沉得越彻底
-    if(p.y>H+6||p.fade<=0){                                     // 落尽→顶部慢慢补(I 越大补得越少=越沉寂)
-      if(Math.random()<(0.9-I*0.5)){ p.x=Math.random()*W; p.y=-6; p.vx=(Math.random()-.5)*0.3; p.vy=0.3+Math.random()*0.4; p.fade=1; p.seed=Math.random(); }
-      else { p.fade=0; } continue;
-    }
-    ctx.strokeStyle='hsla('+hue+','+sat+'%,'+clamp(L+14,48,80)+'%,'+clamp(p.fade*(0.12+I*0.22),0,0.5)+')';
-    ctx.lineWidth=1.0;
-    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*2.2,p.y-p.vy*2.2);ctx.stroke();  // 短竖向拖尾，越慢越短
-  }
-}
-
-let lastTS=0,lastIdx=-1;
-function loop(ts){
-  const dt=Math.min((ts-lastTS)/1000||.016,.05); lastTS=ts;
-  let sig={hue:250,sat:55,light:48,mode:'drift',intensity:.12,idx:-1},prog=0,seg=null;
+/* ================= 渲染循环 ================= */
+let lastIdx=-1;
+function segIndexAt(t){ if(!SEGMENTS.length)return -1; let i=0; for(let k=0;k<SEGMENTS.length;k++){ if(t>=SEGMENTS[k].start)i=k; } return i; }
+function loop(){
+  let e=lastE, idx=-1, seg=null;
   if(SEGMENTS.length){
-    let e=0; if(playing&&actx){ e=actx.currentTime-startTime; e=DUR?(((e%DUR)+DUR)%DUR):0; prog=DUR?e/DUR:0; }
-    const cs=colorStateAt(e); seg=SEGMENTS[cs.idx];
-    const live=clamp(liveEnergy()*2,0,1);
-    sig={ hue:cs.hue,sat:cs.sat,light:cs.light,mode:cs.mode, intensity:clamp((seg?seg.energy:.2)*.5 + live*.85, 0, 1.3), idx:cs.idx };
-    if(cs.idx!==lastIdx){ lastIdx=cs.idx; markSegRow(cs.idx); if(SEGMENTS[cs.idx]) onEnter(SEGMENTS[cs.idx].visual_mode); }
+    if(playing&&actx){ e=actx.currentTime-startTime; e=DUR?(((e%DUR)+DUR)%DUR):0; lastE=e; }
+    idx=segIndexAt(e); seg=SEGMENTS[idx];
+    const live=playing?clamp(liveEnergy()*1.6,0,1):0;
+    if(seg){ const tc=moodColor(seg.mood,clamp(seg.intensity*0.8+live*0.3,0,1)); bgH=lerpHue(bgH,tc.h,0.04); bgS=lerp(bgS,tc.s,0.04); bgL=lerp(bgL,tc.l+live*4,0.06); }
+    if(idx!==lastIdx){ lastIdx=idx; showNow(idx); }
   }
-  render(sig,dt);
-  $('#modeTag').textContent = seg?('mode: '+sig.mode+'　·　段 '+(sig.idx+1)+'/'+SEGMENTS.length):'—';
-  $('#cap').textContent = seg?(seg.text||'…'):'…';
-  $('#seek i').style.width=(prog*100)+'%';
+  setBg(); drawArc(e,idx);
+  $('#seek i').style.width=(DUR?e/DUR*100:0)+'%';
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.addEventListener('resize',resize);
+window.addEventListener('resize',resizeArc);
 
-/* ---------- 段落表 UI ---------- */
-function renderSegList(){
-  const el=$('#seglist'); if(!SEGMENTS.length){el.innerHTML='';return;}
-  let h='<div class="h"><div>段</div><div>时间</div><div>mode</div><div>color · text</div></div>';
-  SEGMENTS.forEach((s,i)=>{ h+='<div class="r" data-i="'+i+'"><div>'+(i+1)+'</div><div>'+fmt(s.start)+'–'+fmt(s.end)+'</div><div><span class="pill">'+s.visual_mode+'</span></div><div><span class="sw" style="background:'+s.color+'"></span>'+s.text+'</div></div>'; });
-  el.innerHTML=h;
-}
-function markSegRow(i){ document.querySelectorAll('#seglist .r').forEach(r=>r.classList.toggle('act',+r.dataset.i===i)); }
-
-/* ---------- 载入任意音频（内置曲 / 上传）→ DSP 切段 → 兜底填 ---------- */
-async function ingest(name, arr, mime){
+/* ================= 载入（内置 / 上传）→ DSP → 本机粗读 ================= */
+async function ingest(name,arrbuf,mime){
   stop();
-  rawBytes=new Uint8Array(arr.slice(0)); rawMime=mime||'audio/mpeg';
+  rawBytes=new Uint8Array(arrbuf.slice(0)); rawMime=mime||'audio/mpeg';
   $('#status').textContent='正在解码 '+name+' …';
-  initAudio(); buf=await actx.decodeAudioData(arr.slice(0)); DUR=buf.duration;
+  initAudio(); buf=await actx.decodeAudioData(arrbuf.slice(0)); DUR=buf.duration;
   $('#status').textContent='正在分析 + 切段（本机）…';
-  const tl=analyze(buf); SEGMENTS=segment(tl); dspFill(SEGMENTS);
-  resize(); renderSegList(); lastIdx=-1; startTime=0;
-  $('#cap').textContent='按 ▶ 播放';
-  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· 切成 '+SEGMENTS.length+' 段 · DSP 兜底，点「让 AI 理解」可换成 AI 填的 mode/color/text';
+  SEGMENTS=segment(analyze(buf)); SONG={summary:''}; dspFill();
+  resizeArc(); lastIdx=-1; lastE=0; _shown=-1; setNowImmediate(0);
+  $('#summary').innerHTML='<b>'+name+'</b> · '+SONG.summary;
+  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· 切成 '+SEGMENTS.length+' 段 · 现在是本机粗读，点「让 AI 读懂」换成真解读';
 }
-async function boot(){ try{ $('#status').textContent='正在载入 '+SONG_NAME+' …'; const arr=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}); await ingest(SONG_NAME, arr, 'audio/mpeg'); }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } }
+async function boot(){ try{ $('#status').textContent='正在载入 '+SONG_NAME+' …'; const a=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}); await ingest(SONG_NAME,a,'audio/mpeg'); }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } }
 boot();
-
-/* ---------- 上传（拖拽到画面 / 点按钮，全程本机，不上传服务器） ---------- */
 function loadFile(f){ if(!f)return; f.arrayBuffer().then(b=>ingest(f.name,b,f.type||'audio/mpeg')).catch(err=>{ $('#status').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; }); }
 $('#file').onchange=e=>loadFile(e.target.files[0]);
-const stageEl=document.querySelector('.stage');
-['dragover','dragenter'].forEach(ev=>stageEl.addEventListener(ev,e=>{e.preventDefault();stageEl.style.outline='2px dashed var(--accent2)';stageEl.style.outlineOffset='-2px';}));
-['dragleave','drop'].forEach(ev=>stageEl.addEventListener(ev,e=>{e.preventDefault();stageEl.style.outline='';}));
-stageEl.addEventListener('drop',e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)loadFile(f); });
-
-/* ---------- 控制 ---------- */
 $('#play').onclick=()=>{ if(playing)stop(); else start(); };
 
-/* ---------- 步骤2：段落表喂 Gemini，每段只出 {visual_mode,color,text} ---------- */
+/* ================= Gemini：看完整首 + DSP 段落 → summary + 每段 now/label/intensity/mood ================= */
 const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite'];
-const SCHEMA={ type:'OBJECT', properties:{ segments:{type:'ARRAY',items:{type:'OBJECT',properties:{
-  i:{type:'INTEGER'}, visual_mode:{type:'STRING',enum:MODES}, color:{type:'STRING'}, text:{type:'STRING'}
-}, required:['i','visual_mode','color','text']}} }, required:['segments'] };
-const PROMPT='你在帮听不见声音的人"看见+读懂"一首歌。下面是本机切好的段落（含每段能量 energy 0-1，结构已定，请勿改 i/start/end）。请听音频，为每一段只输出三样：\n- visual_mode：只能是 drift / burst / settle 之一。drift=平静流动/铺陈；burst=爆发/强烈/高潮；settle=渐弱/收束/沉淀。要和该段能量与你听到的走向一致（高能量段别给 settle）。\n- color：一个十六进制颜色 #RRGGBB，代表这一段的色彩气质。\n- text：中文一句，不超过 20 字，写这一段的情绪/画面，具体有画面感，禁止空话。\n只输出 JSON，不要任何解释或前缀。';
+const SCHEMA={ type:'OBJECT', properties:{
+  summary:{type:'STRING'},
+  segments:{type:'ARRAY',items:{type:'OBJECT',properties:{ i:{type:'INTEGER'}, now:{type:'STRING'}, label:{type:'STRING'}, intensity:{type:'NUMBER'}, mood:{type:'STRING'} }, required:['i','now','label','intensity','mood']}}
+}, required:['summary','segments'] };
+const PROMPT='你在帮听不见声音的人「读懂」一首歌——他们只看文字、不听声音。下面是本机把整首歌切好的段落(每段含能量 energy 0-1，结构已定，请勿改 i/start/end)。请你完整听这段音频，输出 JSON：\n- summary：一句话概括整首歌(开场给人看，≤24字)。\n- 每段 segments[]：\n  · now：用大白话讲「此刻」音乐在干什么、给人什么感觉。现在时、有画面感、像在你耳边轻声解说。**不要用技术词**(BPM/调式/和弦/分贝等)。≤30字。\n  · label：这一段的角色，二到四字(如 开场/铺垫/爆发/副歌/收束/尾声)。\n  · intensity：0~1，这一段的强度(和你听到的、以及 energy 对应)。\n  · mood：「暖」或「冷」+ 一个情绪词(如 暖·期待 / 冷·孤独)，只用来配背景色。\n要求：基于你真实听到的，别套模板、别写空话。只输出 JSON，不要解释或前缀。';
 function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C)s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
-function applyAI(data){ if(!data||!Array.isArray(data.segments))return false; let n=0;
-  for(const f of data.segments){ const sg=SEGMENTS[f.i]; if(!sg)continue;
-    if(MODES.includes(f.visual_mode))sg.visual_mode=f.visual_mode;
-    const c=normHex(f.color); if(c)sg.color=c;
-    if(f.text)sg.text=String(f.text).trim(); n++; }
-  renderSegList(); lastIdx=-1; return n>0;
+function applyAI(data){
+  if(!data)return false;
+  if(data.summary)SONG.summary=String(data.summary).trim();
+  if(Array.isArray(data.segments)){ for(const f of data.segments){ const s=SEGMENTS[f.i]; if(!s)continue;
+    if(f.now)s.now=String(f.now).trim(); if(f.label)s.label=String(f.label).trim();
+    if(typeof f.intensity==='number')s.intensity=clamp(f.intensity,0,1); if(f.mood)s.mood=String(f.mood).trim(); } }
+  $('#summary').innerHTML='<b>'+($('#summary').querySelector('b')?$('#summary').querySelector('b').textContent:'')+'</b> · '+SONG.summary;
+  lastIdx=-1; _shown=-1; setNowImmediate(segIndexAt(lastE)); return true;
 }
+window.__applyAI=applyAI; // 供测试注入「仿 Gemini」payload
 $('#aiBtn').onclick=async()=>{
   if(!SEGMENTS.length||!rawBytes){ $('#status').textContent='还没载入歌曲'; return; }
   let key=$('#key').value.trim()||localStorage.getItem('gk')||'';
@@ -316,21 +240,19 @@ $('#aiBtn').onclick=async()=>{
   const body={ contents:[{parts:[{inline_data:{mime_type:rawMime,data:u8ToB64(rawBytes)}},{text:PROMPT+'\n\n【段落事实】\n'+JSON.stringify(facts)}]}], generationConfig:{temperature:0.8,maxOutputTokens:2048,responseMimeType:'application/json',responseSchema:SCHEMA} };
   let lastErr='';
   for(const m of GEMINI_MODELS){
-    $('#status').textContent='AI 正在听（'+m+'）…';
+    $('#status').textContent='AI 正在完整听这首歌（'+m+'）…';
     try{
       const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const j=await r.json().catch(()=>({}));
-      if(r.ok){ const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); let d=null; try{d=JSON.parse(txt);}catch(e){try{d=JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));}catch(e2){}} if(d&&applyAI(d)){ $('#status').textContent='✓ AI 已逐段填好（'+m+'）· 画面与文字现在由 AI 的理解驱动'; return; } lastErr='返回不是有效 JSON'; continue; }
+      if(r.ok){ const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); let d=null; try{d=JSON.parse(txt);}catch(e){try{d=JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));}catch(e2){}} if(d&&applyAI(d)){ $('#status').textContent='✓ AI 已读懂（'+m+'）· 跟着播放看「此刻」和情绪弧'; return; } lastErr='返回不是有效 JSON'; continue; }
       lastErr=(j.error&&j.error.message)||('HTTP '+r.status); if(!/quota|exceed|not found|NOT_FOUND|unsupported|limit|404/i.test(lastErr))break;
     }catch(e){ lastErr=String(e); break; }
   }
   $('#status').textContent='AI 出错：'+lastErr;
 };
 
-/* ---------- 验收钩子 ---------- */
-window.__set=(i,mode,color)=>{ const s=SEGMENTS[i]; if(!s)return '无此段'; if(mode&&MODES.includes(mode))s.visual_mode=mode; const c=normHex(color); if(c)s.color=c; renderSegList(); lastIdx=-1; return {set:i,now:{visual_mode:s.visual_mode,color:s.color}}; };
-window.__selfcheck=()=>({ segments:SEGMENTS.map((s,i)=>({i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy,visual_mode:s.visual_mode,color:s.color,text:s.text})), thisFrame:window.__lastRender, sourceOfTruth:'SEGMENTS（渲染器每帧 colorStateAt()→SEGMENTS，阅读层 seg.text→SEGMENTS）' });
-window.SEGMENTS_REF=()=>SEGMENTS;
+/* ================= 自测钩子 ================= */
+window.__state=()=>({ summary:SONG.summary, dur:+DUR.toFixed(1), playhead:+lastE.toFixed(1), curIdx:segIndexAt(lastE), shownNow:$('#nowText').textContent, shownLabel:$('#label').textContent, bg:[Math.round(bgH),Math.round(bgS),Math.round(bgL)], segs:SEGMENTS.map((s,i)=>({i,t:fmt(s.start)+'–'+fmt(s.end),label:s.label,intensity:+(s.intensity||s.energy).toFixed(2),mood:s.mood,now:s.now})) });
 </script>
 </body>
 </html>
