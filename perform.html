@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>随乐而动 · 视觉默剧</title>
+<style>
+  :root{ --text:#f3f1ff; --muted:#9a98b8; --line:rgba(255,255,255,.16); --accent:#8b7bff; --accent2:#e06bff; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;}
+  body{color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#05050a;}
+  #bg{position:fixed;inset:0;z-index:0;background:radial-gradient(120% 90% at 50% 42%,#191634,#08070f 72%,#040409);transition:background .9s linear;}
+  #stage{position:fixed;inset:0;z-index:1;display:block;}
+  .ui{position:fixed;z-index:2;left:0;right:0;pointer-events:none;}
+  .ui *{pointer-events:auto;}
+  .top{top:0;padding:16px 20px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;}
+  .brand{font-weight:800;font-size:15px;letter-spacing:.02em;opacity:.92;text-shadow:0 2px 14px rgba(0,0,0,.6);}
+  .brand span{color:var(--accent2);}
+  #status{font-size:12px;color:var(--muted);text-align:right;max-width:54vw;text-shadow:0 1px 8px rgba(0,0,0,.6);}
+  .bottom{bottom:0;padding:0 20px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .transport{display:flex;align-items:center;gap:12px;width:min(680px,92vw);background:rgba(10,10,20,.42);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:10px 14px;}
+  .iconbtn{width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:17px;cursor:pointer;display:grid;place-items:center;flex:0 0 auto;}
+  .iconbtn:hover{filter:brightness(1.12);}
+  .seek{flex:1;min-width:120px;height:7px;border-radius:99px;background:rgba(255,255,255,.12);position:relative;overflow:hidden;cursor:pointer;}
+  .seek i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .time{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:74px;text-align:center;}
+  .filebtn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex:0 0 auto;}
+  .filebtn:hover{border-color:var(--accent);}
+  .hint{font-size:11.5px;color:var(--muted);text-shadow:0 1px 8px rgba(0,0,0,.6);}
+  .now{font-size:11px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<canvas id="stage"></canvas>
+
+<div class="ui">
+  <div class="top">
+    <div class="brand">随乐而动 <span>·</span> 视觉默剧</div>
+    <div id="status">载入中…</div>
+  </div>
+  <div class="bottom">
+    <div class="now" id="nowmode">—</div>
+    <div class="transport">
+      <button class="iconbtn" id="play">▶</button>
+      <span class="time" id="time">0:00 / 0:00</span>
+      <div class="seek" id="seek"><i></i></div>
+      <label class="filebtn" style="cursor:pointer">⬆ 换我的歌<input id="file" type="file" accept="audio/*" hidden></label>
+    </div>
+    <div class="hint">放歌，看它跟着<b style="color:#fff">表演</b>这首歌 · 重拍前会蓄力，落在拍上爆发</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const lerpHue=(a,b,t)=>{const d=((b-a+540)%360)-180;return (a+d*t+360)%360;};
+const lerpAng=(a,b,t)=>{let d=b-a; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI; return a+d*t;};
+const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+
+const SONG_URL='assets/epic.mp3', SONG_NAME='Heroic Age';
+let DUR=0, buf=null;
+let SECTIONS=[];   // {start,end,intensity,mode}
+let HITS=[];       // {t,str,bass,dx,dy,strong}  排序的拍点（含预设冲向方向）
+let PERIOD=0.5;    // 估计的节拍周期（给 idle 摇摆用）
+
+/* ===================== 复用：DSP（能量包络 + 段落） ===================== */
+const NORM=arr=>{const s=Array.from(arr).sort((a,b)=>a-b);const lo=s[(s.length*.05)|0]||0,hi=s[(s.length*.95)|0]||1,d=(hi-lo)||1,o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++)o[i]=clamp((arr[i]-lo)/d,0,1);return o;};
+const SMOOTH=(arr,k)=>{const o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++){let s=0,c=0;for(let j=-k;j<=k;j++){const x=i+j;if(x>=0&&x<arr.length){s+=arr[x];c++;}}o[i]=s/c;}return o;};
+function mixMono(ab){ if(ab.numberOfChannels===1)return ab.getChannelData(0); const a=ab.getChannelData(0),b=ab.getChannelData(1),o=new Float32Array(a.length); for(let i=0;i<a.length;i++)o[i]=(a[i]+b[i])*.5; return o; }
+function rmsEnv(ch,sr,fps){ const hop=Math.max(1,(sr/fps)|0),N=Math.max(1,(ch.length/hop)|0),o=new Float32Array(N); for(let f=0;f<N;f++){const s0=f*hop;let s=0,c=0;for(let i=0;i<hop&&s0+i<ch.length;i++){const v=ch[s0+i];s+=v*v;c++;}o[f]=Math.sqrt(s/(c||1));} return o; }
+function segment(ch,sr){
+  const fps=30, E=SMOOTH(NORM(rmsEnv(ch,sr,fps)),4), n=E.length;
+  const W=Math.max(1,Math.round(fps*0.6)), nov=new Float32Array(n);
+  for(let i=W;i<n;i++) nov[i]=Math.abs(E[i]-E[i-W]);
+  const novS=SMOOTH(nov,Math.round(fps*0.4));
+  let mean=0; for(let i=0;i<n;i++)mean+=novS[i]; mean/=(n||1);
+  let v=0; for(let i=0;i<n;i++)v+=(novS[i]-mean)**2; const std=Math.sqrt(v/(n||1));
+  const thr=mean+0.7*std, minGap=Math.round(fps*6), bounds=[0]; let last=0;
+  for(let i=1;i<n-1;i++){ if(novS[i]>thr&&novS[i]>=novS[i-1]&&novS[i]>novS[i+1]&&i-last>=minGap){bounds.push(i);last=i;} }
+  bounds.push(n);
+  const segs=[];
+  for(let k=0;k<bounds.length-1;k++){ const s=bounds[k],e=Math.max(bounds[k]+1,bounds[k+1]); let m=0,c=0; for(let i=s;i<e;i++){m+=E[i];c++;} m/=c||1;
+    const inten=+m.toFixed(3), prev=segs.length?segs[segs.length-1].intensity:inten;
+    let mode = inten<0.34?'calm':inten>0.66?'surge':'groove';
+    if(inten>prev+0.12 && mode!=='surge') mode='build';
+    segs.push({start:s/fps,end:e/fps,intensity:inten,mode}); }
+  return segs;
+}
+
+/* ===================== 新增：拍点检测（卡点的根） ===================== */
+// 整首离线扫一遍：全频/低频/高频能量 → flux → 自适应峰值 = 拍点。强拍 = 强力一击。
+function detectHits(ch,sr){
+  const fps=120, hop=Math.max(1,(sr/fps)|0), N=Math.max(2,(ch.length/hop)|0);
+  const fc=170, a=1-Math.exp(-2*Math.PI*fc/sr); let lp=0;
+  const full=new Float32Array(N), bass=new Float32Array(N), treb=new Float32Array(N);
+  for(let f=0;f<N;f++){ const s0=f*hop; let sf=0,sb=0,st=0,c=0;
+    for(let i=0;i<hop;i++){ const x=ch[s0+i]||0; lp+=a*(x-lp); const t=x-lp; sf+=x*x; sb+=lp*lp; st+=t*t; c++; }
+    full[f]=Math.sqrt(sf/(c||1)); bass[f]=Math.sqrt(sb/(c||1)); treb[f]=Math.sqrt(st/(c||1)); }
+  const flux=new Float32Array(N);
+  for(let f=1;f<N;f++) flux[f]=Math.max(0,full[f]-full[f-1])+1.4*Math.max(0,bass[f]-bass[f-1])+0.5*Math.max(0,treb[f]-treb[f-1]);
+  const fx=SMOOTH(flux,2);
+  // 估计节拍周期（autocorr）
+  let best=0,bestLag=Math.round(fps*0.5);
+  for(let lag=Math.round(fps*0.3);lag<=Math.round(fps*1.0);lag++){ let s=0; for(let f=lag;f<N;f++)s+=fx[f]*fx[f-lag]; if(s>best){best=s;bestLag=lag;} }
+  PERIOD=bestLag/fps;
+  // 自适应峰值
+  const win=Math.round(fps*0.45), minGap=Math.round(fps*0.11), peaks=[]; let lastPk=-1e9;
+  for(let f=2;f<N-2;f++){
+    let m=0,c=0; const lo=Math.max(0,f-win),hi=Math.min(N,f+win);
+    for(let j=lo;j<hi;j++){m+=fx[j];c++;} m/=c;
+    let vv=0; for(let j=lo;j<hi;j++)vv+=(fx[j]-m)**2; const sd=Math.sqrt(vv/c);
+    const thr=m+1.0*sd;
+    if(fx[f]>thr && fx[f]>=fx[f-1]&&fx[f]>fx[f+1]&&fx[f]>=fx[f-2]&&fx[f]>fx[f+2] && f-lastPk>=minGap){
+      peaks.push({t:f/fps, raw:fx[f], bass:bass[f]/((full[f])||1e-6)}); lastPk=f;
+    }
+  }
+  if(!peaks.length) return [];
+  // 强度归一
+  const sorted=peaks.map(p=>p.raw).sort((a,b)=>a-b);
+  const loV=sorted[(sorted.length*.1)|0]||0, hiV=sorted[(sorted.length*.92)|0]||1, dv=(hiV-loV)||1;
+  const strongThr=sorted[(sorted.length*.6)|0]||hiV;
+  return peaks.map((p,i)=>{
+    const str=clamp((p.raw-loV)/dv,0,1), strong=p.raw>=strongThr;
+    // 每个拍点预设一个冲向方向：黄金角铺开 + 强拍偏上（像往上跳）
+    const ang=i*2.39996; let dx=Math.cos(ang), dy=Math.sin(ang);
+    const up=strong?0.62:0.22; dy=dy*(1-up)-up;
+    const L=Math.hypot(dx,dy)||1;
+    return {t:p.t, str, bass:p.bass, strong, dx:dx/L, dy:dy/L};
+  });
+}
+
+/* ===================== 颜色：段落强度 → 冷暖 ===================== */
+const HUE_STOPS=[[0,214],[0.32,260],[0.55,292],[0.74,28],[1,6]];
+function hueFor(v){ v=clamp(v,0,1); for(let i=1;i<HUE_STOPS.length;i++){ if(v<=HUE_STOPS[i][0]){ const A=HUE_STOPS[i-1],B=HUE_STOPS[i],t=(v-A[0])/((B[0]-A[0])||1); return lerpHue(A[1],B[1],t);} } return 6; }
+
+/* ===================== 音频（复用） ===================== */
+let actx=null,master=null,analyser=null,td=null,source=null,startTime=0,playing=false,lastT=0,liveE=0;
+function initAudio(){ if(actx)return; actx=new (window.AudioContext||window.webkitAudioContext)(); master=actx.createGain();master.gain.value=.9; analyser=actx.createAnalyser();analyser.fftSize=1024; td=new Uint8Array(analyser.fftSize); master.connect(analyser); analyser.connect(actx.destination); }
+function liveEnergy(){ if(!analyser||!playing)return 0; analyser.getByteTimeDomainData(td); let s=0; for(let i=0;i<td.length;i++){const x=(td[i]-128)/128;s+=x*x;} return Math.sqrt(s/td.length); }
+function start(){ stop(); initAudio(); if(actx.state==='suspended')actx.resume(); source=actx.createBufferSource(); source.buffer=buf; source.loop=true; source.connect(master); startTime=actx.currentTime+.05-lastT; source.start(actx.currentTime+.05,lastT%(DUR||1)); playing=true; $('#play').textContent='⏸'; }
+function stop(){ playing=false; if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}source=null;} $('#play').textContent='▶'; }
+function nowT(){ return playing&&actx ? (((actx.currentTime-startTime)%(DUR||1))+(DUR||1))%(DUR||1) : lastT; }
+
+/* ===================== 表演者：弹簧软体 + 编舞 ===================== */
+const stage=$('#stage'), g=stage.getContext('2d');
+let W=2,H=2,DPR=1;
+function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; stage.width=W*DPR; stage.height=H*DPR; stage.style.width=W+'px'; stage.style.height=H+'px'; g.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',resize); resize();
+
+// 软体角色的物理状态（全部弹簧驱动 → 自带蓄力/回弹）
+const B={
+  size:{x:0.5,v:0}, px:{x:0,v:0}, py:{x:0,v:0},      // 大小、位置偏移
+  aimx:{x:0,v:0}, aimy:{x:0,v:0}, squash:{x:1,v:0},  // 朝向伸展、纵向压扁
+  spin:0
+};
+// 编舞驱动量
+let baseSize=0.5, baseY=0, windup=0, excite=0, flash=0, breath=0, sway=0;
+let sdx=0, sdy=-1, wdx=0, wdy=-1;   // sd=刚落下那一击的方向（跟随），wd=下一拍的方向（蓄力拉弓）
+let hitCursor=0, curSec=-1, lastStrike={hitT:0,firedAt:0,str:0};
+const strikeLog=[]; // {hitT,firedAt} 用于核对同步
+// 拖尾残影、冲击粒子、冲击环、肢体
+const echoes=[], streaks=[], rings=[];
+const LIMB_N=3, limbs=[];
+for(let i=0;i<LIMB_N;i++){ const a=(i/LIMB_N)*Math.PI*2 - Math.PI/2; limbs.push({a, seg:[{x:0,y:0,vx:0,vy:0},{x:0,y:0,vx:0,vy:0},{x:0,y:0,vx:0,vy:0},{x:0,y:0,vx:0,vy:0}]}); }
+
+const LEAD=0.30; // 重拍前多久开始蓄力（预知未来）
+function sectionAt(t){ if(!SECTIONS.length)return -1; let i=0; for(let k=0;k<SECTIONS.length;k++) if(t>=SECTIONS[k].start)i=k; return i; }
+
+function strike(h){
+  excite=Math.max(excite, 0.55+h.str*0.8);
+  flash=Math.min(1, 0.5+h.str*0.7);
+  sdx=h.dx; sdy=h.dy;
+  const power=0.6+h.str;
+  // 冲击粒子：沿冲向方向喷出一束（=「冲/撞」的形），强拍才多、才长
+  const cx=W/2+B.px.x, cy=H/2+B.py.x, R=bodyR();
+  const baseAng=Math.atan2(h.dy,h.dx), n=Math.round(4+h.str*22);
+  for(let i=0;i<n;i++){ const spread=(Math.random()-0.5)*0.7; const ang=baseAng+spread;
+    const sp=(4.5+Math.random()*5)*power*60; // px/s，更快=更长的拖尾
+    streaks.push({x:cx+Math.cos(ang)*R*0.8,y:cy+Math.sin(ang)*R*0.8,px:cx+Math.cos(ang)*R*0.6,py:cy+Math.sin(ang)*R*0.6,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:0,max:0.34+Math.random()*0.26,w:1.5+h.str*3.5}); }
+  // 冲击环：落点的撞击
+  if(h.strong) rings.push({x:cx,y:cy,r:R*0.7,vr:(320+h.str*520),life:0,max:0.5,w:2.5+h.str*4});
+  lastStrike={hitT:h.t,firedAt:performance.now()/1000,str:h.str}; strikeLog.push({hitT:+h.t.toFixed(3)});
+  if(strikeLog.length>200)strikeLog.shift();
+}
+
+// 把绝对时间 t 的「编舞意图」算出来（每 tick 一次）
+function drive(t){
+  // 段落基线（整首起伏）
+  const si=sectionAt(t);
+  if(si!==curSec){ curSec=si; const s=SECTIONS[si];
+    $('#nowmode').textContent = s ? ({calm:'低语 · 迟疑',groove:'律动 · 耍',build:'积蓄 · 前倾',surge:'爆发 · 腾跃'}[s.mode]||'') : '—';
+    setBg(s?s.intensity:0.4); }
+  const sec=SECTIONS[si]||{intensity:0.4,mode:'groove'};
+  baseSize = lerp(0.34,0.92,sec.intensity);
+  baseY = lerp(H*0.14,0,sec.intensity);   // 能量低→沉下去
+  // 越过的拍点 = 触发 strike
+  while(hitCursor<HITS.length && HITS[hitCursor].t<=t){ strike(HITS[hitCursor]); hitCursor++; }
+  // 蓄力：看下一个拍点，越近越蓄（预知未来 → 动作落在拍上而非拍后）
+  windup=0;
+  if(hitCursor<HITS.length){ const h=HITS[hitCursor], dt=h.t-t;
+    if(dt>0&&dt<LEAD){ windup=(1-dt/LEAD)*(0.4+h.str*0.6); wdx=h.dx; wdy=h.dy; } }
+  // idle 呼吸 + 律动摇摆（让安静时也活着 / groove 时会耍）
+  breath += 0.016;
+  const swayAmt = sec.mode==='groove'?1:sec.mode==='surge'?0.5:0.25;
+  sway = Math.sin(t/Math.max(0.25,PERIOD)*Math.PI*2)*swayAmt;
+}
+
+function bodyR(){ return Math.min(W,H)*0.16*B.size.x; }
+// 背景跟段落走（暗色调，让亮身体跳出来；CSS .9s 过渡平滑切段）
+function setBg(inten){ const h=Math.round(hueFor(inten)), s=Math.round(clamp(30+inten*42,28,74)), l1=Math.round(7+inten*9), l2=4;
+  $('#bg').style.background='radial-gradient(120% 90% at 50% 42%, hsl('+h+' '+s+'% '+l1+'%), hsl('+((h+18)%360)+' '+Math.max(18,s-10)+'% '+l2+'%) 72%, #040409)'; }
+
+const FIXED=1/60; let acc=0;
+function stepFixed(){
+  // 目标：基线 + 蓄力(缩+回拉) + 爆发(涨+前冲)
+  const breathe=Math.sin(breath)*0.03;
+  const sizeT = baseSize*(1 - 0.20*windup + 0.55*excite) + breathe;
+  const reach = excite*1.25;
+  const aimxT = sdx*reach - wdx*windup*0.55;   // 跟随上一击的方向探出；蓄力时朝下一拍反方向收（拉弓）
+  const aimyT = sdy*reach - wdy*windup*0.55;
+  const D=Math.min(W,H);
+  const pushX = sdx*excite*D*0.18 - wdx*windup*D*0.05 + sway*D*0.04;
+  const pushY = baseY + sdy*excite*D*0.17 - wdy*windup*D*0.04;
+  const squashT = 1 - 0.22*windup + 0.16*excite;
+  // 弹簧（欠阻尼 → 过冲回弹 = 跟随动作）
+  const SP=(s,target,k,d)=>{ s.v += (target-s.x)*k; s.v*=d; s.x+=s.v; };
+  SP(B.size,sizeT,0.16,0.74);
+  SP(B.px,pushX,0.14,0.78);
+  SP(B.py,pushY,0.14,0.78);
+  SP(B.aimx,aimxT,0.20,0.72);
+  SP(B.aimy,aimyT,0.20,0.72);
+  SP(B.squash,squashT,0.22,0.74);
+  B.spin += (sway*0.04 - B.spin)*0.1;
+  // 衰减
+  excite*=0.93; flash*=0.88;
+  // 肢体：被身体甩在「运动反方向」的弹簧链（像甩动的尾/发 → 二次动作、跟随）
+  const cx=W/2+B.px.x, cy=H/2+B.py.x, R=bodyR();
+  const spd=Math.hypot(B.px.v,B.py.v), moveAng=Math.atan2(B.py.v,B.px.v), trail=clamp(spd*0.10,0,1);
+  for(let li=0;li<limbs.length;li++){ const lb=limbs[li];
+    const fan=(li-(limbs.length-1)/2)*0.5;
+    const dir=lerpAng(lb.a+B.spin, moveAng+Math.PI+fan*0.6, trail);   // 静止散开，一动就甩到身后
+    const ext=R*(0.5+excite*1.7+windup*0.25+spd*0.05);
+    let ax=cx+Math.cos(dir)*R*0.62, ay=cy+Math.sin(dir)*R*0.62;
+    for(let i=0;i<lb.seg.length;i++){ const p=lb.seg[i], f=(i+1)/lb.seg.length;
+      const tx=ax+Math.cos(dir)*ext*f*0.85, ty=ay+Math.sin(dir)*ext*f*0.85;
+      p.vx+=(tx-p.x)*0.16; p.vy+=(ty-p.y)*0.16; p.vx*=0.58; p.vy*=0.58; p.x+=p.vx; p.y+=p.vy;
+      ax=p.x; ay=p.y;
+    }
+  }
+  // 粒子 / 环
+  for(let i=streaks.length-1;i>=0;i--){ const s=streaks[i]; s.px=s.x;s.py=s.y; s.x+=s.vx*FIXED;s.y+=s.vy*FIXED; s.vx*=0.92;s.vy*=0.92; s.life+=FIXED; if(s.life>=s.max)streaks.splice(i,1); }
+  for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.r+=r.vr*FIXED; r.vr*=0.96; r.life+=FIXED; if(r.life>=r.max)rings.splice(i,1); }
+}
+
+function tick(dt){
+  acc+=dt; let guard=0;
+  while(acc>=FIXED && guard<8){ stepFixed(); acc-=FIXED; guard++; }
+  // 残影快照
+  echoes.push({x:W/2+B.px.x,y:H/2+B.py.x,r:bodyR()}); if(echoes.length>6)echoes.shift();
+}
+
+/* ===================== 渲染 ===================== */
+function blobPath(cx,cy,R,sizeY,aimx,aimy,wob){
+  const N=26, aimAng=Math.atan2(aimy,aimx), aimMag=Math.hypot(aimx,aimy);
+  g.beginPath();
+  for(let k=0;k<=N;k++){ const ang=k/N*Math.PI*2;
+    const d=Math.cos(ang-aimAng);
+    let rr=R*(1 + aimMag*1.5*Math.max(0,d) - aimMag*0.35*Math.max(0,-d));
+    rr*=1 + 0.06*Math.sin(ang*3+wob) + 0.045*Math.sin(ang*5-wob*1.6) + liveE*0.12*Math.sin(ang*4+wob*2);
+    const x=cx+Math.cos(ang)*rr, y=cy+Math.sin(ang)*rr*sizeY;
+    if(k===0)g.moveTo(x,y); else g.lineTo(x,y);
+  }
+  g.closePath();
+}
+function render(t){
+  g.clearRect(0,0,W,H);
+  const si=sectionAt(t), sec=SECTIONS[si]||{intensity:0.4};
+  const inten=sec.intensity, hue=hueFor(clamp(inten+excite*0.25,0,1));
+  const cx=W/2+B.px.x, cy=H/2+B.py.x, R=bodyR(), sizeY=B.squash.x;
+  // 冲击环
+  for(const r of rings){ const a=(1-r.life/r.max)*0.5; g.beginPath();g.arc(r.x,r.y,r.r,0,7); g.strokeStyle='hsla('+hue+',90%,72%,'+a+')'; g.lineWidth=r.w*(1-r.life/r.max); g.stroke(); }
+  // 残影（动模糊）
+  for(let i=0;i<echoes.length-1;i++){ const e=echoes[i], a=(i/echoes.length)*0.14;
+    g.beginPath();g.arc(e.x,e.y,e.r*0.92,0,7); g.fillStyle='hsla('+hue+',70%,60%,'+a+')'; g.fill(); }
+  // 肢体（甩动的丝 = 跟随/伸手）：锥度 + 越往梢越淡，平滑曲线
+  g.lineCap='round'; g.lineJoin='round';
+  for(const lb of limbs){ const pts=[{x:cx,y:cy}].concat(lb.seg);
+    for(let i=0;i<pts.length-1;i++){ const a=pts[i],b=pts[i+1], f=1-i/(pts.length-1);
+      const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      g.beginPath(); g.moveTo(a.x,a.y); g.quadraticCurveTo(a.x,a.y,mx,my); g.lineTo(b.x,b.y);
+      g.strokeStyle='hsla('+hue+',82%,'+(60+flash*20)+'%,'+((0.14+excite*0.34)*f)+')';
+      g.lineWidth=Math.max(0.6,R*0.17*f*(0.55+excite)); g.stroke(); } }
+  // 冲击粒子（喷射的力）
+  for(const s of streaks){ const a=(1-s.life/s.max); g.beginPath();g.moveTo(s.px,s.py);g.lineTo(s.x,s.y);
+    g.strokeStyle='hsla('+(hue)+',95%,'+(70+flash*20)+'%,'+(a*0.85)+')'; g.lineWidth=s.w*a+0.4; g.lineCap='round'; g.stroke(); }
+  // 主体（发光软体）
+  g.save();
+  g.shadowBlur=28+flash*40+inten*22; g.shadowColor='hsla('+hue+',95%,'+(60+flash*20)+'%,0.9)';
+  const grad=g.createRadialGradient(cx,cy-R*0.2,R*0.15,cx,cy,R*1.25);
+  grad.addColorStop(0,'hsla('+hue+',95%,'+(72+flash*16)+'%,0.98)');
+  grad.addColorStop(0.55,'hsla('+hue+',88%,'+(56+inten*8)+'%,0.92)');
+  grad.addColorStop(1,'hsla('+((hue+18)%360)+',80%,40%,0.05)');
+  blobPath(cx,cy,R,sizeY,B.aimx.x,B.aimy.x,breath); g.fillStyle=grad; g.fill();
+  // 内核
+  g.shadowBlur=10; g.beginPath();g.arc(cx,cy,R*0.32*(1+flash*0.4),0,7);
+  g.fillStyle='hsla('+hue+',100%,'+(86+flash*10)+'%,'+(0.7+flash*0.3)+')'; g.fill();
+  g.restore();
+}
+
+/* ===================== 主循环（rAF，audio 时钟驱动） ===================== */
+let prev=performance.now();
+function loop(){
+  const now=performance.now(), dt=Math.min(0.05,(now-prev)/1000); prev=now;
+  if(playing){ const t=nowT(); if(t<lastT-0.2){ hitCursor=0; for(const l of strikeLog.splice(0))0; } lastT=t; liveE=lerp(liveE,liveEnergy(),0.4); }
+  else liveE*=0.92;
+  const t=lastT;
+  drive(t); tick(dt); render(t);
+  $('#seek i').style.width=(DUR?t/DUR*100:0)+'%';
+  $('#time').textContent=fmt(t)+' / '+fmt(DUR);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// 同步步进（不受后台标签页节流影响，给自测用）
+window.__step=(seconds,fps=60)=>{ const dt=1/fps, n=Math.round(seconds*fps); for(let i=0;i<n;i++){ lastT=(lastT+dt)%(DUR||1); if(lastT<dt){hitCursor=0;} drive(lastT); tick(dt); } render(lastT); return window.__perf(); };
+window.__seek=t=>{ lastT=clamp(t,0,DUR); hitCursor=0; while(hitCursor<HITS.length&&HITS[hitCursor].t<lastT)hitCursor++; curSec=-1; drive(lastT); render(lastT); return window.__perf(); };
+
+/* ===================== 载入（内置 / 上传）→ 分析 ===================== */
+async function ingest(name,arrbuf){
+  stop(); lastT=0; hitCursor=0; curSec=-1;
+  $('#status').textContent='正在解码 '+name+' …';
+  initAudio(); buf=await actx.decodeAudioData(arrbuf.slice(0)); DUR=buf.duration;
+  $('#status').textContent='正在分析整首（切段 + 拍点）…';
+  const ch=mixMono(buf), sr=buf.sampleRate;
+  SECTIONS=segment(ch,sr); HITS=detectHits(ch,sr);
+  const strong=HITS.filter(h=>h.strong).length;
+  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· '+SECTIONS.length+' 段 · '+HITS.length+' 拍点（'+strong+' 重击）· 节拍≈'+PERIOD.toFixed(2)+'s';
+  drive(0); render(0);
+}
+async function boot(){ try{ $('#status').textContent='正在载入 '+SONG_NAME+' …'; const a=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}); await ingest(SONG_NAME,a); }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } }
+boot();
+$('#file').onchange=e=>{ const f=e.target.files[0]; if(f) f.arrayBuffer().then(b=>ingest(f.name,b)).catch(err=>$('#status').textContent='解码失败：'+((err&&err.message)||err)); };
+$('#play').onclick=()=>{ if(playing)stop(); else start(); };
+$('#seek').onclick=e=>{ const r=$('#seek').getBoundingClientRect(); const p=clamp((e.clientX-r.left)/r.width,0,1); lastT=p*DUR; if(playing){ stop(); start(); } else { hitCursor=0; while(hitCursor<HITS.length&&HITS[hitCursor].t<lastT)hitCursor++; drive(lastT); render(lastT); } };
+
+/* ===================== 自测钩子 ===================== */
+window.__perf=()=>({ t:+lastT.toFixed(2), playing, dur:+DUR.toFixed(1),
+  section:curSec, mode:(SECTIONS[curSec]||{}).mode, sectionInten:+((SECTIONS[curSec]||{}).intensity||0).toFixed(2),
+  hits:HITS.length, strong:HITS.filter(h=>h.strong).length, period:+PERIOD.toFixed(2), hitCursor,
+  size:+B.size.x.toFixed(3), windup:+windup.toFixed(3), excite:+excite.toFixed(3),
+  pos:[Math.round(B.px.x),Math.round(B.py.x)], aim:[+B.aimx.x.toFixed(2),+B.aimy.x.toFixed(2)],
+  streaks:streaks.length, rings:rings.length, strikes:strikeLog.length,
+  nextHit: HITS[hitCursor]?+(HITS[hitCursor].t-lastT).toFixed(3):null });
+window.__hits=()=>HITS.map(h=>({t:+h.t.toFixed(2),str:+h.str.toFixed(2),strong:h.strong}));
+window.__sections=()=>SECTIONS.map((s,i)=>({i,t:fmt(s.start)+'–'+fmt(s.end),inten:s.intensity,mode:s.mode}));
+</script>
+</body>
+</html>
