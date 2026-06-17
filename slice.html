@@ -47,6 +47,7 @@
 
   <div class="row">
     <button class="btn" id="play">▶ 播放</button>
+    <label class="btn ghost" id="upBtn" style="cursor:pointer">⬆ 上传我的歌<input id="file" type="file" accept="audio/*" hidden></label>
     <div class="seek" id="seek"><i></i></div>
   </div>
 
@@ -208,21 +209,28 @@ function renderSegList(){
 }
 function markSegRow(i){ document.querySelectorAll('#seglist .r').forEach(r=>r.classList.toggle('act',+r.dataset.i===i)); }
 
-/* ---------- 载入一首内置曲 → DSP 切段 → 兜底填 ---------- */
-async function boot(){
-  try{
-    $('#status').textContent='正在载入 '+SONG_NAME+' …';
-    const arr=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();});
-    rawBytes=new Uint8Array(arr.slice(0));
-    initAudio(); buf=await actx.decodeAudioData(arr.slice(0)); DUR=buf.duration;
-    $('#status').textContent='正在分析 + 切段（本机）…';
-    const tl=analyze(buf); SEGMENTS=segment(tl); dspFill(SEGMENTS);
-    resize(); renderSegList(); lastIdx=-1;
-    $('#cap').textContent='按 ▶ 播放';
-    $('#status').textContent='✓ '+SONG_NAME+'（'+Math.round(DUR)+'s）· 切成 '+SEGMENTS.length+' 段 · 现在是 DSP 兜底，点「让 AI 理解」可换成 AI 填的 mode/color/text';
-  }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); }
+/* ---------- 载入任意音频（内置曲 / 上传）→ DSP 切段 → 兜底填 ---------- */
+async function ingest(name, arr, mime){
+  stop();
+  rawBytes=new Uint8Array(arr.slice(0)); rawMime=mime||'audio/mpeg';
+  $('#status').textContent='正在解码 '+name+' …';
+  initAudio(); buf=await actx.decodeAudioData(arr.slice(0)); DUR=buf.duration;
+  $('#status').textContent='正在分析 + 切段（本机）…';
+  const tl=analyze(buf); SEGMENTS=segment(tl); dspFill(SEGMENTS);
+  resize(); renderSegList(); lastIdx=-1; startTime=0;
+  $('#cap').textContent='按 ▶ 播放';
+  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· 切成 '+SEGMENTS.length+' 段 · DSP 兜底，点「让 AI 理解」可换成 AI 填的 mode/color/text';
 }
+async function boot(){ try{ $('#status').textContent='正在载入 '+SONG_NAME+' …'; const arr=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}); await ingest(SONG_NAME, arr, 'audio/mpeg'); }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } }
 boot();
+
+/* ---------- 上传（拖拽到画面 / 点按钮，全程本机，不上传服务器） ---------- */
+function loadFile(f){ if(!f)return; f.arrayBuffer().then(b=>ingest(f.name,b,f.type||'audio/mpeg')).catch(err=>{ $('#status').textContent='解码失败，换个文件试试（'+((err&&err.message)||err)+'）'; }); }
+$('#file').onchange=e=>loadFile(e.target.files[0]);
+const stageEl=document.querySelector('.stage');
+['dragover','dragenter'].forEach(ev=>stageEl.addEventListener(ev,e=>{e.preventDefault();stageEl.style.outline='2px dashed var(--accent2)';stageEl.style.outlineOffset='-2px';}));
+['dragleave','drop'].forEach(ev=>stageEl.addEventListener(ev,e=>{e.preventDefault();stageEl.style.outline='';}));
+stageEl.addEventListener('drop',e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)loadFile(f); });
 
 /* ---------- 控制 ---------- */
 $('#play').onclick=()=>{ if(playing)stop(); else start(); };
