@@ -159,6 +159,8 @@ const B={
 // 编舞驱动量
 let baseSize=0.5, baseY=0, windup=0, excite=0, flash=0, breath=0, sway=0;
 let sdx=0, sdy=-1, wdx=0, wdy=-1;   // sd=刚落下那一击的方向（跟随），wd=下一拍的方向（蓄力拉弓）
+// 物理副系统：每段给身体的「家」一套不同的动法（治整首循环同一种动）
+let curMode='groove'; const pend={th:0.55,w:0}; const orb={a:0}; let riseY=0;
 let hitCursor=0, curSec=-1, lastStrike={hitT:0,firedAt:0,str:0};
 const strikeLog=[]; // {hitT,firedAt} 用于核对同步
 // 拖尾残影、冲击粒子、冲击环、肢体
@@ -173,6 +175,9 @@ function strike(h){
   excite=Math.max(excite, 0.55+h.str*0.8);
   flash=Math.min(1, 0.5+h.str*0.7);
   sdx=h.dx; sdy=h.dy;
+  // 拍点给当前物理副系统一个冲量：单摆被推一把 / 轨道顿一下
+  if(curMode==='calm') pend.w += (h.dx>=0?1:-1)*(0.25+h.str*0.55);
+  else if(curMode==='groove'||curMode==='build') orb.a += 0.10+h.str*0.22;
   const power=0.6+h.str;
   // 冲击粒子：沿冲向方向喷出一束（=「冲/撞」的形），强拍才多、才长
   const cx=W/2+B.px.x, cy=H/2+B.py.x, R=bodyR();
@@ -194,6 +199,7 @@ function drive(t){
     $('#nowmode').textContent = s ? ({calm:'低语 · 迟疑',groove:'律动 · 耍',build:'积蓄 · 前倾',surge:'爆发 · 腾跃'}[s.mode]||'') : '—';
     setBg(s?s.intensity:0.4); }
   const sec=SECTIONS[si]||{intensity:0.4,mode:'groove'};
+  curMode=sec.mode;
   baseSize = lerp(0.34,0.92,sec.intensity);
   baseY = lerp(H*0.14,0,sec.intensity);   // 能量低→沉下去
   // 越过的拍点 = 触发 strike
@@ -221,9 +227,27 @@ function stepFixed(){
   const reach = excite*1.25;
   const aimxT = sdx*reach - wdx*windup*0.55;   // 跟随上一击的方向探出；蓄力时朝下一拍反方向收（拉弓）
   const aimyT = sdy*reach - wdy*windup*0.55;
-  const D=Math.min(W,H);
-  const pushX = sdx*excite*D*0.18 - wdx*windup*D*0.05 + sway*D*0.04;
-  const pushY = baseY + sdy*excite*D*0.17 - wdy*windup*D*0.04;
+  const D=Math.min(W,H), dt=FIXED;
+  // 物理副系统：按段落让「家」走完全不同的轨迹
+  let hx=0, hy=baseY;
+  if(curMode==='calm'){           // 单摆：吊在偏上支点下慢慢荡（升顶→停→落，预备感物理自带）
+    pend.w += (-(5.0)*Math.sin(pend.th))*dt - 0.35*pend.w*dt; pend.th += pend.w*dt;
+    hx = Math.sin(pend.th)*D*0.20;
+    hy = -D*0.10 + Math.cos(pend.th)*D*0.12;
+  } else if(curMode==='groove'){  // 轨道：绕圈耍，约两小节一圈
+    orb.a += 2*Math.PI*dt/Math.max(0.6,PERIOD*2);
+    hx = Math.cos(orb.a)*D*0.16; hy = Math.sin(orb.a)*D*0.11;
+    riseY=lerp(riseY,0,0.04);
+  } else if(curMode==='build'){   // 抬升+收紧：边往上飘边把轨道半径缩小（积蓄）
+    riseY = lerp(riseY, -D*0.16, 0.012);
+    orb.a += 2*Math.PI*dt/Math.max(0.6,PERIOD*2)*0.7;
+    const r=lerp(D*0.13,D*0.05,clamp(-riseY/(D*0.16),0,1));
+    hx = Math.cos(orb.a)*r; hy = riseY + Math.sin(orb.a)*r*0.5;
+  } else {                        // surge：回中心，靠爆发主导
+    riseY=lerp(riseY,0,0.06); hx=0; hy=0;
+  }
+  const pushX = hx + sdx*excite*D*0.18 - wdx*windup*D*0.05 + sway*D*0.03;
+  const pushY = hy + sdy*excite*D*0.17 - wdy*windup*D*0.04;
   const squashT = 1 - 0.22*windup + 0.16*excite;
   // 弹簧（欠阻尼 → 过冲回弹 = 跟随动作）
   const SP=(s,target,k,d)=>{ s.v += (target-s.x)*k; s.v*=d; s.x+=s.v; };
