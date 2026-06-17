@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最小竖切片 · 理解 → 实时呈现</title>
+<style>
+  :root{ --bg:#0c0c11; --card:#181820; --line:#2a2a37; --text:#ececf3; --muted:#9696ac; --accent:#7c6cff; --accent2:#c06bff; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.6;}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 20px 60px;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;}
+  .stage{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;}
+  canvas{display:block;width:100%;height:100%;}
+  .modetag{position:absolute;top:12px;left:12px;font-size:12px;color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;backdrop-filter:blur(6px);}
+  .capwrap{position:absolute;left:0;right:0;bottom:0;padding:42px 20px 16px;background:linear-gradient(0deg,rgba(0,0,0,.72),transparent);pointer-events:none;}
+  .caption{font-size:clamp(15px,2.2vw,20px);font-weight:600;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.6);min-height:1.5em;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:11px 20px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .seek{flex:1;min-width:160px;height:6px;border-radius:99px;background:rgba(255,255,255,.08);position:relative;overflow:hidden;}
+  .seek i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .status{color:var(--muted);font-size:13px;margin-top:12px;}
+  input{background:#14141c;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px 12px;font-family:inherit;font-size:13px;}
+  .seglist{margin-top:18px;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;}
+  .seglist .h,.seglist .r{display:grid;grid-template-columns:64px 90px 80px 1fr;gap:8px;padding:8px 12px;align-items:center;}
+  .seglist .h{background:#14141c;color:var(--muted);font-weight:600;}
+  .seglist .r{border-top:1px solid var(--line);}
+  .seglist .r.act{background:rgba(124,108,255,.12);}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(255,255,255,.2);vertical-align:middle;margin-right:6px;}
+  .pill{font-size:11.5px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);}
+  .note{margin-top:18px;font-size:12.5px;color:var(--muted);border-left:3px solid var(--accent);padding:8px 12px;background:rgba(124,108,255,.06);border-radius:0 10px 10px 0;}
+  code{background:#14141c;padding:1px 6px;border-radius:5px;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>最小竖切片 · 理解 → 实时呈现</h1>
+  <p class="sub">一条链：DSP 切段 + 每段能量 → AI 每段输出 <code>{visual_mode, color, text}</code> → 实时渲染器按段落表驱动画面（仅 drift / burst / settle 三态）+ 同步显示文字。</p>
+
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="modetag" id="modeTag">—</div>
+    <div class="capwrap"><div class="caption" id="cap">载入中…</div></div>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="play">▶ 播放</button>
+    <div class="seek" id="seek"><i></i></div>
+  </div>
+
+  <div class="row">
+    <button class="btn ghost" id="aiBtn">✦ 让 AI 理解（每段填 mode/color/text）</button>
+    <input id="key" type="password" placeholder="Gemini key（AIza…，只存你浏览器）" style="flex:1;min-width:220px;">
+  </div>
+  <div class="status" id="status">—</div>
+
+  <div class="seglist" id="seglist"></div>
+
+  <div class="note">
+    <b>验收用：</b>不需要 key 也会先用 DSP 兜底跑起来。打开控制台改一段，画面应当<b>立刻</b>对应变：<br>
+    <code>__set(2,'burst','#ff3366')</code> — 把第 2 段改成 burst + 红色；<code>__set(2,'drift','#3aa0ff')</code> 改回。<br>
+    <code>__selfcheck()</code> 看当前段落表 + 这一帧实际用的 mode/color（证明视觉读的就是这张表）。
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+
+const SONG_URL='assets/epic.mp3', SONG_NAME='Heroic Age';
+const MODES=['drift','burst','settle'];
+
+/* ---------- 颜色 ---------- */
+function hexToHsl(hex){ hex=(hex||'').replace('#','').trim(); if(hex.length===3)hex=hex.split('').map(c=>c+c).join(''); if(!/^[0-9a-fA-F]{6}$/.test(hex))return{h:250,s:55,l:55}; const r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360;} const l=(mx+mn)/2,s=d?d/(1-Math.abs(2*l-1)):0; return{h,s:s*100,l:l*100}; }
+function hslToHex(h,s,l){ h=((h%360)+360)%360;s=clamp(s,0,100)/100;l=clamp(l,0,100)/100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));};const hx=v=>Math.round(v*255).toString(16).padStart(2,'0');return'#'+hx(f(0))+hx(f(8))+hx(f(4)); }
+function lerpHue(a,b,t){ const d=((b-a+540)%360)-180; return (a+d*t+360)%360; }
+function normHex(c){ c=(c||'').trim(); if(c&&c[0]!=='#')c='#'+c; return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c)?c:null; }
+
+/* ---------- DSP（复用最小版：能量包络 + novelty 切段 + 段能量） ---------- */
+const NORM=arr=>{const s=Array.from(arr).sort((a,b)=>a-b);const lo=s[Math.floor(s.length*.05)]||0,hi=s[Math.floor(s.length*.95)]||1,d=(hi-lo)||1,o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++)o[i]=clamp((arr[i]-lo)/d,0,1);return o;};
+const SMOOTH=(arr,k)=>{const o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++){let s=0,c=0;for(let j=-k;j<=k;j++){const x=i+j;if(x>=0&&x<arr.length){s+=arr[x];c++;}}o[i]=s/c;}return o;};
+function mixMono(ab){ if(ab.numberOfChannels===1)return ab.getChannelData(0); const a=ab.getChannelData(0),b=ab.getChannelData(1),o=new Float32Array(a.length); for(let i=0;i<a.length;i++)o[i]=(a[i]+b[i])*.5; return o; }
+function rmsEnv(ch,sr,fps){ const hop=Math.max(1,Math.floor(sr/fps)),N=Math.max(1,Math.floor(ch.length/hop)),o=new Float32Array(N); for(let f=0;f<N;f++){const s0=f*hop;let s=0,c=0;for(let i=0;i<hop&&s0+i<ch.length;i++){const v=ch[s0+i];s+=v*v;c++;}o[f]=Math.sqrt(s/(c||1));} return o; }
+function analyze(ab){ const sr=ab.sampleRate,fps=30,energy=SMOOTH(NORM(rmsEnv(mixMono(ab),sr,fps)),4); return {fps,n:energy.length,dur:ab.duration,energy}; }
+function segment(tl){
+  const {fps,n,energy:E}=tl, W=Math.max(1,Math.round(fps*0.6)), nov=new Float32Array(n);
+  for(let i=W;i<n;i++) nov[i]=Math.abs(E[i]-E[i-W]);
+  const novS=SMOOTH(nov,Math.round(fps*0.4));
+  let mean=0; for(let i=0;i<n;i++)mean+=novS[i]; mean/=(n||1);
+  let v=0; for(let i=0;i<n;i++)v+=(novS[i]-mean)**2; const std=Math.sqrt(v/(n||1));
+  const thr=mean+0.7*std, minGap=Math.round(fps*6), bounds=[0]; let last=0;
+  for(let i=1;i<n-1;i++){ if(novS[i]>thr&&novS[i]>=novS[i-1]&&novS[i]>novS[i+1]&&i-last>=minGap){bounds.push(i);last=i;} }
+  bounds.push(n);
+  const segs=[];
+  for(let k=0;k<bounds.length-1;k++){ const s=bounds[k],e=Math.max(bounds[k]+1,bounds[k+1]); let m=0,c=0; for(let i=s;i<e;i++){m+=E[i];c++;} m/=c||1;
+    segs.push({ start:s/fps, end:e/fps, energy:+m.toFixed(3), visual_mode:'', color:'', text:'' }); }
+  return segs;
+}
+// 无 key 时的兜底：用能量推 mode/color/text，让链先跑起来
+function dspFill(segs){
+  segs.forEach((sg,i)=>{
+    const e=sg.energy, prev=i>0?segs[i-1].energy:e;
+    sg.visual_mode = e>0.6?'burst' : (prev-e>0.12?'settle':'drift');
+    const hue=lerp(232,388,clamp(e,0,1))%360;
+    sg.color = hslToHex(hue, clamp(46+e*40,40,92), clamp(34+e*16,30,56));
+    sg.text = e<0.25?'安静地铺着，几乎留白。' : e<0.55?'层次缓缓叠加，往上走。' : '能量推到很高，满而有力。';
+  });
+}
+
+/* ---------- 段落表（唯一真相） ---------- */
+let SEGMENTS=[], DUR=0, rawBytes=null, rawMime='audio/mpeg';
+function segIndexAt(t){ if(!SEGMENTS.length)return -1; let i=0; for(let k=0;k<SEGMENTS.length;k++){ if(t>=SEGMENTS[k].start)i=k; } return i; }
+function colorStateAt(t){ // 视觉层从同一张表取：色彩跨段插值；mode 在边界硬切
+  const i=segIndexAt(t); if(i<0)return{hue:250,sat:55,light:50,mode:'drift',idx:-1};
+  const cur=SEGMENTS[i]; const XF=1.2; let mix=0,nx=cur;
+  if(i<SEGMENTS.length-1&&(cur.end-t)<XF){ mix=clamp((XF-(cur.end-t))/XF,0,1); nx=SEGMENTS[i+1]; }
+  const a=hexToHsl(cur.color),b=hexToHsl(nx.color);
+  return { hue:lerpHue(a.h,b.h,mix), sat:lerp(a.s,b.s,mix), light:lerp(a.l,b.l,mix), mode:cur.visual_mode||'drift', idx:i };
+}
+
+/* ---------- 音频（含实时能量 analyser） ---------- */
+let actx=null,master=null,analyser=null,td=null,source=null,startTime=0,playing=false,buf=null;
+function initAudio(){ if(actx)return; actx=new (window.AudioContext||window.webkitAudioContext)(); master=actx.createGain();master.gain.value=.9; analyser=actx.createAnalyser();analyser.fftSize=1024; td=new Uint8Array(analyser.fftSize); master.connect(analyser); analyser.connect(actx.destination); }
+function liveEnergy(){ if(!analyser)return 0; analyser.getByteTimeDomainData(td); let s=0; for(let i=0;i<td.length;i++){const x=(td[i]-128)/128;s+=x*x;} return Math.sqrt(s/td.length); }
+function start(){ stop(); initAudio(); if(actx.state==='suspended')actx.resume(); source=actx.createBufferSource(); source.buffer=buf; source.loop=true; source.connect(master); startTime=actx.currentTime+.04; source.start(startTime); playing=true; $('#play').textContent='⏸ 暂停'; }
+function stop(){ playing=false; if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}source=null;} $('#play').textContent='▶ 播放'; }
+
+/* ---------- 实时渲染器（drift / burst / settle 三态，由段落表驱动） ---------- */
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let W=2,H=2,parts=[],curI=.2,tAcc=Math.random()*1000;
+function resize(){ const dpr=Math.min(devicePixelRatio||1,2),r=cv.getBoundingClientRect(); W=Math.max(2,r.width);H=Math.max(2,r.height); cv.width=W*dpr;cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle='#05050a';ctx.fillRect(0,0,W,H); seedParts(); }
+function seedParts(){ parts=[]; const N=240; for(let i=0;i<N;i++)parts.push(mkPart()); }
+function mkPart(){ return {x:Math.random()*W,y:Math.random()*H,px:0,py:0,vx:0,vy:0,life:Math.random()*200}; }
+function field(x,y){ const sc=.0017*lerp(1,1.5,curI); return (Math.sin(x*sc+tAcc*.3)+Math.cos(y*sc-tAcc*.22)+Math.sin((x+y)*sc*.6+tAcc*.15))*Math.PI; }
+
+window.__lastRender=null;
+function render(sig,dt){
+  const cx=W/2,cy=H/2;
+  curI=lerp(curI,sig.intensity,.1); tAcc+=dt*(.15+curI*.6);
+  const hue=sig.hue,sat=clamp(sig.sat,32,96),baseL=sig.light,mode=sig.mode;
+  window.__lastRender={segIdx:sig.idx,mode,hue:Math.round(hue),color0:SEGMENTS[sig.idx]&&SEGMENTS[sig.idx].color};
+  // 拖尾
+  ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(5,5,11,'+(mode==='burst'?0.22:0.14)+')'; ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
+  const I=curI;
+  for(const p of parts){
+    if(mode==='drift'){
+      const a=field(p.x,p.y); p.vx+=Math.cos(a)*.4; p.vy+=Math.sin(a)*.4;
+      const cap=.4+I*1.4,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+    } else if(mode==='burst'){
+      let dx=p.x-cx,dy=p.y-cy,d=Math.hypot(dx,dy)||.001; p.vx+=dx/d*(.25+I*1.6); p.vy+=dy/d*(.25+I*1.6);
+      const cap=1.4+I*6,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+    } else { // settle：下沉 + 摩擦
+      p.vy+=.12*(.5+I); p.vx*=.95; p.vy*=.985;
+      const cap=.6+I*1.6,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+    }
+    p.px=p.x;p.py=p.y;p.x+=p.vx;p.y+=p.vy;p.life--;
+    const off=p.x<-6||p.x>W+6||p.y<-6||p.y>H+6||p.life<0;
+    if(off){ const np=mkPart(); np.life=120+Math.random()*160;
+      if(mode==='burst'){ np.x=cx+(Math.random()-.5)*30; np.y=cy+(Math.random()-.5)*30; }
+      else if(mode==='settle'){ np.x=Math.random()*W; np.y=-4; np.vy=.3; }
+      Object.assign(p,np); continue; }
+    const li=clamp(baseL*.55+I*26+(mode==='burst'?12:0),28,82);
+    ctx.strokeStyle='hsla('+(hue+Math.sin(p.life*.05)*14)+','+sat+'%,'+li+'%,'+(mode==='burst'?0.22:0.15)+')';
+    ctx.lineWidth=mode==='settle'?1.0:(mode==='burst'?1.4:1.5);
+    ctx.beginPath();ctx.moveTo(p.px,p.py);ctx.lineTo(p.x,p.y);ctx.stroke();
+  }
+  // 中心核（强度脉动）
+  const coreR=12+I*(mode==='burst'?60:26);
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(2,coreR));
+  g.addColorStop(0,'hsla('+hue+','+sat+'%,'+clamp(baseL+20,58,96)+'%,'+(0.4+I*.45)+')');
+  g.addColorStop(1,'hsla('+hue+','+sat+'%,'+clamp(baseL,40,60)+'%,0)');
+  ctx.fillStyle=g; ctx.beginPath();ctx.arc(cx,cy,Math.max(2,coreR),0,7);ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+}
+
+let lastTS=0,lastIdx=-1;
+function loop(ts){
+  const dt=Math.min((ts-lastTS)/1000||.016,.05); lastTS=ts;
+  let sig={hue:250,sat:55,light:48,mode:'drift',intensity:.12,idx:-1},prog=0,seg=null;
+  if(SEGMENTS.length){
+    let e=0; if(playing&&actx){ e=actx.currentTime-startTime; e=DUR?(((e%DUR)+DUR)%DUR):0; prog=DUR?e/DUR:0; }
+    const cs=colorStateAt(e); seg=SEGMENTS[cs.idx];
+    const live=clamp(liveEnergy()*2,0,1);
+    sig={ hue:cs.hue,sat:cs.sat,light:cs.light,mode:cs.mode, intensity:clamp((seg?seg.energy:.2)*.5 + live*.85, 0, 1.3), idx:cs.idx };
+    if(cs.idx!==lastIdx){ lastIdx=cs.idx; markSegRow(cs.idx); }
+  }
+  render(sig,dt);
+  $('#modeTag').textContent = seg?('mode: '+sig.mode+'　·　段 '+(sig.idx+1)+'/'+SEGMENTS.length):'—';
+  $('#cap').textContent = seg?(seg.text||'…'):'…';
+  $('#seek i').style.width=(prog*100)+'%';
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.addEventListener('resize',resize);
+
+/* ---------- 段落表 UI ---------- */
+function renderSegList(){
+  const el=$('#seglist'); if(!SEGMENTS.length){el.innerHTML='';return;}
+  let h='<div class="h"><div>段</div><div>时间</div><div>mode</div><div>color · text</div></div>';
+  SEGMENTS.forEach((s,i)=>{ h+='<div class="r" data-i="'+i+'"><div>'+(i+1)+'</div><div>'+fmt(s.start)+'–'+fmt(s.end)+'</div><div><span class="pill">'+s.visual_mode+'</span></div><div><span class="sw" style="background:'+s.color+'"></span>'+s.text+'</div></div>'; });
+  el.innerHTML=h;
+}
+function markSegRow(i){ document.querySelectorAll('#seglist .r').forEach(r=>r.classList.toggle('act',+r.dataset.i===i)); }
+
+/* ---------- 载入一首内置曲 → DSP 切段 → 兜底填 ---------- */
+async function boot(){
+  try{
+    $('#status').textContent='正在载入 '+SONG_NAME+' …';
+    const arr=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();});
+    rawBytes=new Uint8Array(arr.slice(0));
+    initAudio(); buf=await actx.decodeAudioData(arr.slice(0)); DUR=buf.duration;
+    $('#status').textContent='正在分析 + 切段（本机）…';
+    const tl=analyze(buf); SEGMENTS=segment(tl); dspFill(SEGMENTS);
+    resize(); renderSegList(); lastIdx=-1;
+    $('#cap').textContent='按 ▶ 播放';
+    $('#status').textContent='✓ '+SONG_NAME+'（'+Math.round(DUR)+'s）· 切成 '+SEGMENTS.length+' 段 · 现在是 DSP 兜底，点「让 AI 理解」可换成 AI 填的 mode/color/text';
+  }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); }
+}
+boot();
+
+/* ---------- 控制 ---------- */
+$('#play').onclick=()=>{ if(playing)stop(); else start(); };
+
+/* ---------- 步骤2：段落表喂 Gemini，每段只出 {visual_mode,color,text} ---------- */
+const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite'];
+const SCHEMA={ type:'OBJECT', properties:{ segments:{type:'ARRAY',items:{type:'OBJECT',properties:{
+  i:{type:'INTEGER'}, visual_mode:{type:'STRING',enum:MODES}, color:{type:'STRING'}, text:{type:'STRING'}
+}, required:['i','visual_mode','color','text']}} }, required:['segments'] };
+const PROMPT='你在帮听不见声音的人"看见+读懂"一首歌。下面是本机切好的段落（含每段能量 energy 0-1，结构已定，请勿改 i/start/end）。请听音频，为每一段只输出三样：\n- visual_mode：只能是 drift / burst / settle 之一。drift=平静流动/铺陈；burst=爆发/强烈/高潮；settle=渐弱/收束/沉淀。要和该段能量与你听到的走向一致（高能量段别给 settle）。\n- color：一个十六进制颜色 #RRGGBB，代表这一段的色彩气质。\n- text：中文一句，不超过 20 字，写这一段的情绪/画面，具体有画面感，禁止空话。\n只输出 JSON，不要任何解释或前缀。';
+function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C)s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
+function applyAI(data){ if(!data||!Array.isArray(data.segments))return false; let n=0;
+  for(const f of data.segments){ const sg=SEGMENTS[f.i]; if(!sg)continue;
+    if(MODES.includes(f.visual_mode))sg.visual_mode=f.visual_mode;
+    const c=normHex(f.color); if(c)sg.color=c;
+    if(f.text)sg.text=String(f.text).trim(); n++; }
+  renderSegList(); lastIdx=-1; return n>0;
+}
+$('#aiBtn').onclick=async()=>{
+  if(!SEGMENTS.length||!rawBytes){ $('#status').textContent='还没载入歌曲'; return; }
+  let key=$('#key').value.trim()||localStorage.getItem('gk')||'';
+  if(!key){ $('#status').textContent='👉 先在右边填 Gemini key（AIza…）再点'; $('#key').focus(); return; }
+  localStorage.setItem('gk',key);
+  const facts=SEGMENTS.map((s,i)=>({i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy}));
+  const body={ contents:[{parts:[{inline_data:{mime_type:rawMime,data:u8ToB64(rawBytes)}},{text:PROMPT+'\n\n【段落事实】\n'+JSON.stringify(facts)}]}], generationConfig:{temperature:0.8,maxOutputTokens:2048,responseMimeType:'application/json',responseSchema:SCHEMA} };
+  let lastErr='';
+  for(const m of GEMINI_MODELS){
+    $('#status').textContent='AI 正在听（'+m+'）…';
+    try{
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){ const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); let d=null; try{d=JSON.parse(txt);}catch(e){try{d=JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));}catch(e2){}} if(d&&applyAI(d)){ $('#status').textContent='✓ AI 已逐段填好（'+m+'）· 画面与文字现在由 AI 的理解驱动'; return; } lastErr='返回不是有效 JSON'; continue; }
+      lastErr=(j.error&&j.error.message)||('HTTP '+r.status); if(!/quota|exceed|not found|NOT_FOUND|unsupported|limit|404/i.test(lastErr))break;
+    }catch(e){ lastErr=String(e); break; }
+  }
+  $('#status').textContent='AI 出错：'+lastErr;
+};
+
+/* ---------- 验收钩子 ---------- */
+window.__set=(i,mode,color)=>{ const s=SEGMENTS[i]; if(!s)return '无此段'; if(mode&&MODES.includes(mode))s.visual_mode=mode; const c=normHex(color); if(c)s.color=c; renderSegList(); lastIdx=-1; return {set:i,now:{visual_mode:s.visual_mode,color:s.color}}; };
+window.__selfcheck=()=>({ segments:SEGMENTS.map((s,i)=>({i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy,visual_mode:s.visual_mode,color:s.color,text:s.text})), thisFrame:window.__lastRender, sourceOfTruth:'SEGMENTS（渲染器每帧 colorStateAt()→SEGMENTS，阅读层 seg.text→SEGMENTS）' });
+window.SEGMENTS_REF=()=>SEGMENTS;
+</script>
+</body>
+</html>
