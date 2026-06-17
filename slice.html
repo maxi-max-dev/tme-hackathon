@@ -131,53 +131,111 @@ function liveEnergy(){ if(!analyser)return 0; analyser.getByteTimeDomainData(td)
 function start(){ stop(); initAudio(); if(actx.state==='suspended')actx.resume(); source=actx.createBufferSource(); source.buffer=buf; source.loop=true; source.connect(master); startTime=actx.currentTime+.04; source.start(startTime); playing=true; $('#play').textContent='⏸ 暂停'; }
 function stop(){ playing=false; if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}source=null;} $('#play').textContent='▶ 播放'; }
 
-/* ---------- 实时渲染器（drift / burst / settle 三态，由段落表驱动） ---------- */
+/* ---------- 实时渲染器：三种"被感觉到的现象"，靠形态(运动几何)区分而非颜色 ----------
+   color 仍由段落表插值驱动(保留)；mode 决定空间行为；intensity 接到运动的烈度/质感。
+   全屏、无中心发射器；段间过渡=一个有方向的动作。 */
 const cv=$('#cv'), ctx=cv.getContext('2d');
 let W=2,H=2,parts=[],curI=.2,tAcc=Math.random()*1000;
+let windAng=0, transMode='', transT=0; const TRANS_DUR=0.62;
 function resize(){ const dpr=Math.min(devicePixelRatio||1,2),r=cv.getBoundingClientRect(); W=Math.max(2,r.width);H=Math.max(2,r.height); cv.width=W*dpr;cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle='#05050a';ctx.fillRect(0,0,W,H); seedParts(); }
-function seedParts(){ parts=[]; const N=240; for(let i=0;i<N;i++)parts.push(mkPart()); }
-function mkPart(){ return {x:Math.random()*W,y:Math.random()*H,px:0,py:0,vx:0,vy:0,life:Math.random()*200}; }
-function field(x,y){ const sc=.0017*lerp(1,1.5,curI); return (Math.sin(x*sc+tAcc*.3)+Math.cos(y*sc-tAcc*.22)+Math.sin((x+y)*sc*.6+tAcc*.15))*Math.PI; }
+function seedParts(){ const N=Math.min(460,Math.max(160,Math.round(W*H/4200))); parts=[]; for(let i=0;i<N;i++)parts.push(mkPart()); }
+function mkPart(){ return {x:Math.random()*W,y:Math.random()*H,px:0,py:0,vx:0,vy:0,seed:Math.random(),fade:1}; }
+// 伪噪声角(湍流/漂移共用)；seededAng 让每个 burst 段的风向不同(不对称)
+function noise(x,y,t,s){ return (Math.sin(x*s+t)+Math.cos(y*s-t*0.8)+Math.sin((x-y)*s*0.7+t*0.5))*Math.PI; }
+function seededAng(i){ return ((i<0?0:i)*2.39996)%(Math.PI*2); }
+
+/* —— 段间过渡 = 有方向的动作(对齐边界触发) —— */
+function onEnter(newMode){
+  transMode=newMode; transT=TRANS_DUR; const I=Math.max(curI,.25);
+  for(const p of parts) p.fade=1;                              // 复活 settle 时淡掉的粒子
+  if(newMode==='burst'){                                       // 撕开：全体被骤然甩向风向
+    windAng=seededAng(lastIdx);
+    for(const p of parts){ const k=7+I*9, j=0.4+Math.random(); p.vx+=Math.cos(windAng)*k*j; p.vy+=Math.sin(windAng)*k*j; }
+  } else if(newMode==='settle'){                               // 松手坠落：抹平横向/上行，一起开始下沉
+    for(const p of parts){ p.vx*=0.25; p.vy=Math.abs(p.vy)*0.3 + 1.4 + I*2.2; }
+  } else {                                                     // 化开：就地散开再慢下来(非中心)
+    for(const p of parts){ const a=noise(p.x,p.y,tAcc,0.003); p.vx+=Math.cos(a)*1.4+(Math.random()-.5); p.vy+=Math.sin(a)*1.4+(Math.random()-.5); }
+  }
+}
 
 window.__lastRender=null;
 function render(sig,dt){
-  const cx=W/2,cy=H/2;
-  curI=lerp(curI,sig.intensity,.1); tAcc+=dt*(.15+curI*.6);
-  const hue=sig.hue,sat=clamp(sig.sat,32,96),baseL=sig.light,mode=sig.mode;
+  curI=lerp(curI,sig.intensity,.12); tAcc+=dt*(.2+curI*.6);
+  const I=clamp(curI,0,1.3), mode=sig.mode, hue=sig.hue, sat=clamp(sig.sat,32,96), L=sig.light;
+  if(transT>0) transT=Math.max(0,transT-dt);
   window.__lastRender={segIdx:sig.idx,mode,hue:Math.round(hue),color0:SEGMENTS[sig.idx]&&SEGMENTS[sig.idx].color};
-  // 拖尾
-  ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(5,5,11,'+(mode==='burst'?0.22:0.14)+')'; ctx.fillRect(0,0,W,H);
+  // 拖尾节奏配质感：burst 清得快=脆利流线；drift 留得久=绵雾；settle 居中
+  const fade=mode==='burst'?0.17:mode==='drift'?0.085:0.14;
+  ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(5,5,11,'+fade+')'; ctx.fillRect(0,0,W,H);
   ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
-  const I=curI;
+  if(mode==='burst') drawBurst(I,hue,sat,L);
+  else if(mode==='settle') drawSettle(I,hue,sat,L,dt);
+  else drawDrift(I,hue,sat,L);
+  ctx.globalCompositeOperation='source-over';
+}
+
+/* drift —— 失重的尘/雪/雾：全屏各向同性慢漂、环绕回绕，柔光圆点(无线、无方向、无中心) */
+function drawDrift(I,hue,sat,L){
+  const cap=0.22+I*0.55, soft=0.10+I*0.34;
   for(const p of parts){
-    if(mode==='drift'){
-      const a=field(p.x,p.y); p.vx+=Math.cos(a)*.4; p.vy+=Math.sin(a)*.4;
-      const cap=.4+I*1.4,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
-    } else if(mode==='burst'){
-      let dx=p.x-cx,dy=p.y-cy,d=Math.hypot(dx,dy)||.001; p.vx+=dx/d*(.25+I*1.6); p.vy+=dy/d*(.25+I*1.6);
-      const cap=1.4+I*6,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
-    } else { // settle：下沉 + 摩擦
-      p.vy+=.12*(.5+I); p.vx*=.95; p.vy*=.985;
-      const cap=.6+I*1.6,sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
-    }
-    p.px=p.x;p.py=p.y;p.x+=p.vx;p.y+=p.vy;p.life--;
-    const off=p.x<-6||p.x>W+6||p.y<-6||p.y>H+6||p.life<0;
-    if(off){ const np=mkPart(); np.life=120+Math.random()*160;
-      if(mode==='burst'){ np.x=cx+(Math.random()-.5)*30; np.y=cy+(Math.random()-.5)*30; }
-      else if(mode==='settle'){ np.x=Math.random()*W; np.y=-4; np.vy=.3; }
-      Object.assign(p,np); continue; }
-    const li=clamp(baseL*.55+I*26+(mode==='burst'?12:0),28,82);
-    ctx.strokeStyle='hsla('+(hue+Math.sin(p.life*.05)*14)+','+sat+'%,'+li+'%,'+(mode==='burst'?0.22:0.15)+')';
-    ctx.lineWidth=mode==='settle'?1.0:(mode==='burst'?1.4:1.5);
+    const a=noise(p.x,p.y,tAcc*0.22,0.0016);
+    p.vx+=Math.cos(a)*0.05; p.vy+=Math.sin(a)*0.05+0.004;        // 极轻下沉=雪/尘
+    p.vx*=0.93; p.vy*=0.93;
+    const sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x+=W; else if(p.x>W)p.x-=W; if(p.y<0)p.y+=H; else if(p.y>H)p.y-=H;  // 环绕=全屏均匀
+    const r=1.0+p.seed*1.2;
+    ctx.fillStyle='hsla('+(hue+p.seed*20-10)+','+sat+'%,'+clamp(L+22,55,86)+'%,'+soft+')';
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();
+  }
+}
+
+/* burst —— 有风向+湍流的洪流：粒子被甩成脆利流线、从上风边横扫入场(有方向、不对称、无中心) */
+function drawBurst(I,hue,sat,L){
+  const cap=3+I*10;
+  for(const p of parts){
+    const ta=noise(p.x,p.y,tAcc*1.1,0.0042), wf=0.5+I*1.3, tf=0.4+I*1.8;
+    p.vx+=Math.cos(windAng)*wf+Math.cos(ta)*tf;
+    p.vy+=Math.sin(windAng)*wf+Math.sin(ta)*tf;
+    const sp=Math.hypot(p.vx,p.vy)||.001; if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+    p.px=p.x;p.py=p.y; p.x+=p.vx; p.y+=p.vy;
+    if(p.x<-10||p.x>W+10||p.y<-10||p.y>H+10){ respawnUpwind(p); continue; }
+    const v=Math.hypot(p.vx,p.vy);
+    ctx.strokeStyle='hsla('+hue+','+sat+'%,'+clamp(L+18+v*2,52,92)+'%,'+(0.24+I*0.42)+')';
+    ctx.lineWidth=0.8+Math.min(v*0.18,2.4);
     ctx.beginPath();ctx.moveTo(p.px,p.py);ctx.lineTo(p.x,p.y);ctx.stroke();
   }
-  // 中心核（强度脉动）
-  const coreR=12+I*(mode==='burst'?60:26);
-  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(2,coreR));
-  g.addColorStop(0,'hsla('+hue+','+sat+'%,'+clamp(baseL+20,58,96)+'%,'+(0.4+I*.45)+')');
-  g.addColorStop(1,'hsla('+hue+','+sat+'%,'+clamp(baseL,40,60)+'%,0)');
-  ctx.fillStyle=g; ctx.beginPath();ctx.arc(cx,cy,Math.max(2,coreR),0,7);ctx.fill();
-  ctx.globalCompositeOperation='source-over';
+  if(transMode==='burst'&&transT>0){                            // 入场激波：一道亮 front 沿风向横扫
+    const f=1-transT/TRANS_DUR, diag=Math.hypot(W,H);
+    const cxp=W/2+Math.cos(windAng)*(-0.55+f*1.25)*diag, cyp=H/2+Math.sin(windAng)*(-0.55+f*1.25)*diag;
+    const px=-Math.sin(windAng), py=Math.cos(windAng);
+    ctx.strokeStyle='hsla('+hue+','+sat+'%,92%,'+(0.55*(1-f))+')'; ctx.lineWidth=3+(1-f)*7;
+    ctx.beginPath();ctx.moveTo(cxp-px*diag,cyp-py*diag);ctx.lineTo(cxp+px*diag,cyp+py*diag);ctx.stroke();
+  }
+}
+function respawnUpwind(p){                                       // 满屏重生→洪流铺满整个画面(非边缘细流)
+  p.x=Math.random()*W; p.y=Math.random()*H;
+  p.vx=Math.cos(windAng)*2.4; p.vy=Math.sin(windAng)*2.4; p.px=p.x; p.py=p.y; p.seed=Math.random();
+}
+
+/* settle —— 归于平静：下坠+减速+淡出，慢到停(向下的方向、越强沉得越彻底) */
+function drawSettle(I,hue,sat,L,dt){
+  const grav=0.05+I*0.14, cap=0.7+I*1.5;
+  for(const p of parts){
+    p.vy+=grav; p.vx+=Math.cos(noise(p.x,p.y,tAcc*0.3,0.002))*0.03;
+    p.vx*=0.95; p.vy*=0.99;
+    const sp0=Math.hypot(p.vx,p.vy)||.001; if(sp0>cap){p.vx*=cap/sp0;p.vy*=cap/sp0;}
+    p.px=p.x;p.py=p.y; p.x+=p.vx; p.y+=p.vy;
+    const slow=Math.hypot(p.vx,p.vy);
+    if(slow<0.28||p.y>H-2){ p.fade-=dt*(0.5+I*1.4); }           // 接近静止→淡出；I 越大淡得越快=沉得越彻底
+    if(p.y>H+6||p.fade<=0){                                     // 落尽→顶部慢慢补(I 越大补得越少=越沉寂)
+      if(Math.random()<(0.9-I*0.5)){ p.x=Math.random()*W; p.y=-6; p.vx=(Math.random()-.5)*0.3; p.vy=0.3+Math.random()*0.4; p.fade=1; p.seed=Math.random(); }
+      else { p.fade=0; } continue;
+    }
+    ctx.strokeStyle='hsla('+hue+','+sat+'%,'+clamp(L+14,48,80)+'%,'+clamp(p.fade*(0.12+I*0.22),0,0.5)+')';
+    ctx.lineWidth=1.0;
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*2.2,p.y-p.vy*2.2);ctx.stroke();  // 短竖向拖尾，越慢越短
+  }
 }
 
 let lastTS=0,lastIdx=-1;
@@ -189,7 +247,7 @@ function loop(ts){
     const cs=colorStateAt(e); seg=SEGMENTS[cs.idx];
     const live=clamp(liveEnergy()*2,0,1);
     sig={ hue:cs.hue,sat:cs.sat,light:cs.light,mode:cs.mode, intensity:clamp((seg?seg.energy:.2)*.5 + live*.85, 0, 1.3), idx:cs.idx };
-    if(cs.idx!==lastIdx){ lastIdx=cs.idx; markSegRow(cs.idx); }
+    if(cs.idx!==lastIdx){ lastIdx=cs.idx; markSegRow(cs.idx); if(SEGMENTS[cs.idx]) onEnter(SEGMENTS[cs.idx].visual_mode); }
   }
   render(sig,dt);
   $('#modeTag').textContent = seg?('mode: '+sig.mode+'　·　段 '+(sig.idx+1)+'/'+SEGMENTS.length):'—';
