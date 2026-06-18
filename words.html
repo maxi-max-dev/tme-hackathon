@@ -79,6 +79,7 @@ const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%6
 const SONG_URL='assets/epic.mp3', SONG_NAME='Heroic Age';
 let SEGMENTS=[], SONG={summary:''}, DUR=0, rawBytes=null, rawMime='audio/mpeg';
 let HITS=[], PERIOD=0.5;
+let LYRICS=[], hasVocal=false;   // 人声转写出的歌词(带秒) + 是否检测到人声
 
 /* ============ 复用基础 DSP ============ */
 const NORM=arr=>{const s=Array.from(arr).sort((a,b)=>a-b);const lo=s[(s.length*.05)|0]||0,hi=s[(s.length*.95)|0]||1,d=(hi-lo)||1,o=new Float32Array(arr.length);for(let i=0;i<arr.length;i++)o[i]=clamp((arr[i]-lo)/d,0,1);return o;};
@@ -187,6 +188,34 @@ function detectHits(ch,sr){
   return peaks.map(p=>({t:p.t, str:clamp((p.raw-loV)/dv,0,1), strong:p.raw>=strongThr}));
 }
 
+/* ============ 人声：检测 + 信号级 stem 分离 + Whisper 本地转写 ============ */
+// 检测是否有居中人声（立体声中置能量明显强于两侧 = 很可能有人声；门控用，错判也有兜底）
+function detectVocal(ab){
+  if(ab.numberOfChannels<2) return {hasVocal:false, centerness:0};
+  const L=ab.getChannelData(0),R=ab.getChannelData(1),n=Math.min(L.length,R.length);
+  let mE=0,sE=0; for(let i=0;i<n;i++){ const m=(L[i]+R[i])*0.5, s=(L[i]-R[i])*0.5; mE+=m*m; sE+=s*s; }
+  const centerness=mE/(sE+1e-9);
+  return {hasVocal: centerness>2.2 && (mE/n)>1e-5, centerness:+centerness.toFixed(2)};
+}
+function midCh(ab){ const L=ab.getChannelData(0),R=ab.numberOfChannels>1?ab.getChannelData(1):L,n=L.length,o=new Float32Array(n); for(let i=0;i<n;i++)o[i]=(L[i]+R[i])*.5; return o; }
+// 人声 stem(给 ASR)：中置成分 + 带通到人声频带 + 重采样 16k（Whisper 要 16k 单声道）
+async function vocalStem16k(ab){
+  const mid=midCh(ab), len=Math.ceil(mid.length*16000/ab.sampleRate);
+  const off=new OfflineAudioContext(1,Math.max(1,len),16000);
+  const b=off.createBuffer(1,mid.length,ab.sampleRate); b.copyToChannel(mid,0);
+  const src=off.createBufferSource(); src.buffer=b;
+  const hp=off.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=200;
+  const lp=off.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=5000;
+  src.connect(hp); hp.connect(lp); lp.connect(off.destination); src.start();
+  const o=await off.startRendering(); return o.getChannelData(0);
+}
+// 本地 Whisper（transformers.js，按需下载，无 key、不上传）
+async function transcribe(a16k){
+  if(!window.__asr){ const t=await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'); t.env.allowLocalModels=false;
+    window.__asr=await t.pipeline('automatic-speech-recognition','Xenova/whisper-tiny'); }
+  return window.__asr(a16k,{return_timestamps:true,chunk_length_s:30,stride_length_s:5});
+}
+
 /* ============ 音频 ============ */
 let actx=null,master=null,analyser=null,td=null,source=null,startTime=0,playing=false,lastT=0,liveE=0,buf=null;
 function initAudio(){ if(actx)return; actx=new (window.AudioContext||window.webkitAudioContext)(); master=actx.createGain();master.gain.value=.9; analyser=actx.createAnalyser();analyser.fftSize=1024; td=new Uint8Array(analyser.fftSize); master.connect(analyser); analyser.connect(actx.destination); }
@@ -263,8 +292,9 @@ async function ingest(name,arrbuf,mime){
   $('#status').textContent='正在分析（真实边界 + 拍点）…';
   const ch=mixMono(buf), sr=buf.sampleRate;
   HITS=detectHits(ch,sr); SEGMENTS=structureSegment(ch,sr,HITS); SONG={summary:''}; dspFill();
+  LYRICS=[]; const vd=detectVocal(buf); hasVocal=vd.hasVocal;
   resize(); setBgTarget(0); bgH=moodHue(SEGMENTS[0].mood); bgI=SEGMENTS[0].intensity; setNowImmediate(0);
-  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· 真实边界切成 '+SEGMENTS.length+' 段 · '+HITS.length+' 拍点 · 本机粗读，点「让 AI 读懂」换真解读';
+  $('#status').textContent='✓ '+name+'（'+Math.round(DUR)+'s）· 真实边界 '+SEGMENTS.length+' 段 · '+HITS.length+' 拍点 · '+(hasVocal?'检测到人声(会转写歌词)':'纯器乐')+' · 点「让 AI 读懂」';
 }
 async function boot(){ try{ $('#status').textContent='正在载入 '+SONG_NAME+' …'; const a=await fetch(SONG_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}); await ingest(SONG_NAME,a,'audio/mpeg'); }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } }
 boot();
@@ -277,6 +307,8 @@ const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lit
 const SCHEMA={ type:'OBJECT', properties:{ summary:{type:'STRING'},
   segments:{type:'ARRAY',items:{type:'OBJECT',properties:{ i:{type:'INTEGER'}, now:{type:'STRING'}, label:{type:'STRING'}, intensity:{type:'NUMBER'}, mood:{type:'STRING'} }, required:['i','now','label','intensity','mood']}} }, required:['summary','segments'] };
 const PROMPT='你在帮人「读懂」一首歌——他们边听边看你的文字。下面是本机沿音乐真实转折切好的段落(每段含能量 energy 0-1，结构已定，勿改 i/start/end)。完整听这段音频后输出 JSON：\n- summary：一句话概括整首(≤22字)。\n- 每段 segments[]：\n  · now：大白话讲「这一段」音乐在干什么、什么感觉。现在时、有画面感、像耳边轻声解说。**不要技术词**(BPM/调式/和弦/分贝)。≤24字。\n  · label：这段角色，二到四字(开场/铺垫/渐强/爆发/副歌/收束)。\n  · intensity：0~1。\n  · mood：「暖」或「冷」+一个情绪词(暖·期待/冷·孤独)。\n基于真实听到的，别套模板。只输出 JSON。';
+// 有人声：词意(以转写歌词为准) + 音乐感觉，合成一份
+const PROMPT_VOCAL='这首歌有人声。给你两样：① 整首歌词（本机已转写，带大致秒数，**词以这份为准，别自己重猜词**；个别字可能有误，按上下文理解）。② 本机沿音乐真实转折切好的段落(每段 energy 0-1)，每段附了这段时间里的歌词。你也能听到音频(用来判断音乐的劲，不要用来重猜词)。\n请：先读懂整首歌词在讲什么(主题/情绪/态度)；再逐段，把『这段歌词在说什么』和『这段音乐在做什么』**合成一句**——说出这一段到底是什么。\n输出 JSON：\n- summary：整首在讲什么(点出主题，≤24字)。\n- 每段 segments[]：\n  · now：结合词意+音乐的此刻解读，**要具体到歌在讲的内容**（比如"他在说想回头，可鼓点越催越急"），别只说"很激昂/很感人"。≤30字。\n  · label：二到四字(主歌/副歌/铺垫/爆发/收束…)。\n  · intensity：0~1。\n  · mood：暖/冷+一个情绪词。\n只输出 JSON。';
 function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C)s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
 function applyAI(data){ if(!data)return false;
   if(data.summary)SONG.summary=String(data.summary).trim();
@@ -287,16 +319,32 @@ function applyAI(data){ if(!data)return false;
 window.__applyAI=applyAI;
 $('#aiBtn').onclick=async()=>{
   if(!SEGMENTS.length||!rawBytes){ $('#status').textContent='还没载入歌曲'; return; }
+  // ① 有人声 → 先本地 Whisper 转写歌词（不需要 key）
+  if(hasVocal && !LYRICS.length){
+    try{ $('#status').textContent='分离人声 → 本地转写歌词（首次需下载模型，约几十秒，全程在你浏览器）…';
+      const v=await vocalStem16k(buf); const r=await transcribe(v);
+      LYRICS=((r&&r.chunks)||[]).map(c=>({t:Math.round((c.timestamp&&c.timestamp[0])||0), text:(c.text||'').trim()})).filter(x=>x.text);
+      if(!LYRICS.length && r&&r.text&&r.text.trim()) LYRICS=[{t:0,text:r.text.trim()}];
+      if(LYRICS.length) $('#status').textContent='✓ 歌词已转写（'+LYRICS.length+' 行）· 接着让 AI 把词意和音乐合起来…';
+      else { hasVocal=false; $('#status').textContent='没听清人声/疑似纯器乐 → 转纯音乐理解…'; }
+    }catch(e){ hasVocal=false; $('#status').textContent='人声转写没成（'+((e&&e.message)||e)+'）→ 转纯音乐理解…'; }
+  }
+  // ② Gemini 融合（需要 key）
   let key=$('#key').value.trim()||localStorage.getItem('gk')||'';
-  if(!key){ $('#status').textContent='👉 先填 Gemini key（AIza…）再点'; $('#key').focus(); return; }
+  if(!key){ $('#status').textContent='👉 先填 Gemini key（AIza…）再点'+(LYRICS.length?'（歌词已转好）':''); $('#key').focus(); return; }
   localStorage.setItem('gk',key);
-  const facts=SEGMENTS.map((s,i)=>({i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy}));
-  const body={ contents:[{parts:[{inline_data:{mime_type:rawMime,data:u8ToB64(rawBytes)}},{text:PROMPT+'\n\n【段落事实】\n'+JSON.stringify(facts)}]}], generationConfig:{temperature:0.8,maxOutputTokens:2048,responseMimeType:'application/json',responseSchema:SCHEMA} };
+  const useLy=LYRICS.length>0;
+  const facts=SEGMENTS.map((s,i)=>{ const ly=useLy?LYRICS.filter(l=>l.t>=Math.floor(s.start)&&l.t<Math.ceil(s.end)).map(l=>l.text).join(' '):'';
+    return {i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy, lyric:ly}; });
+  const lyricsAll=useLy?LYRICS.map(l=>'['+fmt(l.t)+'] '+l.text).join('\n'):'';
+  const promptText=useLy ? (PROMPT_VOCAL+'\n\n【整首歌词】\n'+lyricsAll+'\n\n【段落事实(含每段对应歌词)】\n'+JSON.stringify(facts))
+                         : (PROMPT+'\n\n【段落事实】\n'+JSON.stringify(facts));
+  const body={ contents:[{parts:[{inline_data:{mime_type:rawMime,data:u8ToB64(rawBytes)}},{text:promptText}]}], generationConfig:{temperature:0.8,maxOutputTokens:2048,responseMimeType:'application/json',responseSchema:SCHEMA} };
   let lastErr='';
   for(const m of GEMINI_MODELS){ $('#status').textContent='AI 正在完整听这首歌（'+m+'）…';
     try{ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const j=await r.json().catch(()=>({}));
-      if(r.ok){ const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); let d=null; try{d=JSON.parse(txt);}catch(e){try{d=JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));}catch(e2){}} if(d&&applyAI(d)){ $('#status').textContent='✓ AI 已读懂（'+m+'）· 放歌：读字＝懂，看光＝感'; return; } lastErr='返回不是有效 JSON'; continue; }
+      if(r.ok){ const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim(); let d=null; try{d=JSON.parse(txt);}catch(e){try{d=JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));}catch(e2){}} if(d&&applyAI(d)){ $('#status').textContent='✓ AI 已读懂（'+m+(useLy?' · 含歌词词意':' · 纯音乐')+'）· 放歌：读字＝懂，看光＝感'; return; } lastErr='返回不是有效 JSON'; continue; }
       lastErr=(j.error&&j.error.message)||('HTTP '+r.status); if(!/quota|exceed|not found|NOT_FOUND|unsupported|limit|404/i.test(lastErr))break;
     }catch(e){ lastErr=String(e); break; } }
   $('#status').textContent='AI 出错：'+lastErr;
@@ -305,7 +353,9 @@ $('#aiBtn').onclick=async()=>{
 /* ============ 自测钩子 ============ */
 window.__state=()=>({ t:+lastT.toFixed(2), playing, dur:+DUR.toFixed(1), idx:curIdx, shownNow:$('#nowText').textContent, shownLabel:$('#label').textContent,
   bg:[Math.round(bgH),+bgI.toFixed(2),+pulse.toFixed(2)], liveE:+liveE.toFixed(3), hits:HITS.length, period:+PERIOD.toFixed(2),
-  segs:SEGMENTS.length });
+  segs:SEGMENTS.length, hasVocal, lyrics:LYRICS.length });
+window.__lyrics=()=>LYRICS;
+window.__transcribeTest=async(sec)=>{ const v=await vocalStem16k(buf); const slice=v.slice(0,Math.min(v.length,16000*(sec||10))); const r=await transcribe(slice); return {ok:true, text:(r&&r.text||'').slice(0,200), chunks:(r&&r.chunks||[]).length}; };
 window.__sections=()=>SEGMENTS.map((s,i)=>({i,t:fmt(s.start)+'–'+fmt(s.end),dur:+(s.end-s.start).toFixed(1),inten:s.intensity,mood:s.mood,now:s.now}));
 window.__boundaries=()=>SEGMENTS.map(s=>+s.start.toFixed(2));
 </script>
