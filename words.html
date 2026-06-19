@@ -110,50 +110,71 @@ function structureSegment(ch,sr,hits){
   for(let i=L;i<N-L;i++){ let s=0;
     for(let a=-L;a<L;a++){ for(let b=-L;b<L;b++){ const sgn=((a<0)===(b<0))?1:-1; s+=sgn*Math.exp(-((a*a+b*b)/(2*tw)))*sim(i+a,i+b); } }
     nov[i]=s; }
-  const novS=SMOOTH(NORM(nov),2);
-  let mean=0; for(let i=0;i<N;i++)mean+=novS[i]; mean/=N;
-  let v=0; for(let i=0;i<N;i++)v+=(novS[i]-mean)**2; const std=Math.sqrt(v/N);
-  // 取 novelty 最强的前 K 个局部峰 = 只留真正的大转折（封顶，避免切碎）
-  const floor=mean+0.30*std, cand=[];
-  for(let i=2;i<N-2;i++){ if(novS[i]>floor&&novS[i]>=novS[i-1]&&novS[i]>novS[i+1]&&novS[i]>=novS[i-2]&&novS[i]>novS[i+2]) cand.push({i,v:novS[i]}); }
+  const novN=SMOOTH(NORM(nov),2);
+  // ② 局部带变化 = 段内的具体事件（某个声音进/出、突然涨/落）
+  const w=Math.round(fps*0.5), band=new Float32Array(N);
+  for(let i=w;i<N;i++) band[i]=Math.abs(tot[i]-tot[i-w])+Math.abs(F[i][2]-F[i-w][2])+Math.abs(F[i][0]-F[i-w][0]);
+  const bandN=SMOOTH(NORM(band),2);
+  // ③ 合成显著度：结构大转折 + 段内具体事件，取最强的若干"时刻"
+  const sal=new Float32Array(N); for(let i=0;i<N;i++) sal[i]=novN[i]+0.8*bandN[i];
+  let mean=0; for(let i=0;i<N;i++)mean+=sal[i]; mean/=N;
+  let v=0; for(let i=0;i<N;i++)v+=(sal[i]-mean)**2; const std=Math.sqrt(v/N);
+  const floor=mean+0.20*std, cand=[];
+  for(let i=2;i<N-2;i++){ if(sal[i]>floor&&sal[i]>=sal[i-1]&&sal[i]>sal[i+1]&&sal[i]>=sal[i-2]&&sal[i]>sal[i+2]) cand.push({i,v:sal[i]}); }
   cand.sort((a,b)=>b.v-a.v);
-  const minGap=Math.round(fps*4.5), cap=clamp(Math.round((N/fps)/9),3,9), chosen=[];
+  const minGap=Math.round(fps*3.3), cap=clamp(Math.round((N/fps)/5),5,16), chosen=[];
   for(const c of cand){ if(chosen.length>=cap)break; if(chosen.every(x=>Math.abs(x-c.i)>=minGap)) chosen.push(c.i); }
   chosen.sort((a,b)=>a-b);
-  const bnd=[0,...chosen,N];
+  // ④ 吸附到最近的拍（落点准）
   const strong=(hits||[]).filter(h=>h.strong).map(h=>h.t), allT=(hits||[]).map(h=>h.t);
   const near=(ts,list,bd)=>{ let best=null,d=bd; for(const ht of list){ const dd=Math.abs(ht-ts); if(dd<d){d=dd;best=ht;} } return best; };
-  const snap=ts=>{ return near(ts,strong,0.36) ?? near(ts,allT,0.30) ?? ts; }; // 先吸强拍，没有再吸最近的拍
-  const secs=bnd.map((b,k)=> k===0?0 : k===bnd.length-1?N/fps : snap(b/fps));
+  const snap=ts=>near(ts,strong,0.36) ?? near(ts,allT,0.28) ?? ts;
+  const secs=[0,...chosen.map(i=>snap(i/fps)),N/fps];
   const uniq=[...new Set(secs.map(x=>+x.toFixed(2)))].sort((a,b)=>a-b);
+  // ⑤ 建段 + 每段频段均值（低/高/亮度，给"具体"判断用）
   const segs=[];
   for(let k=0;k<uniq.length-1;k++){ const s=uniq[k],e=Math.max(s+0.5,uniq[k+1]);
-    const fa=Math.round(s*fps),fb=Math.min(N,Math.round(e*fps)); let m=0,c=0; for(let i=fa;i<fb;i++){m+=tot[i];c++;} m/=c||1;
-    segs.push({start:s,end:e,energy:+m.toFixed(3),intensity:+m.toFixed(3),now:'',label:'',mood:''}); }
-  // 合并相邻"同性质"段（能量接近=不是真转折，别制造多余变化）
+    const fa=Math.round(s*fps),fb=Math.min(N,Math.round(e*fps)); let m=0,lo=0,hi=0,br=0,c=0;
+    for(let i=fa;i<fb;i++){ m+=tot[i]; lo+=F[i][0]; hi+=F[i][2]; br+=F[i][3]; c++; } c=c||1;
+    segs.push({start:s,end:e,energy:+(m/c).toFixed(3),intensity:+(m/c).toFixed(3),lo:+(lo/c).toFixed(3),hi:+(hi/c).toFixed(3),br:+(br/c).toFixed(3),now:'',label:'',mood:'',kind:''}); }
+  // ⑥ 只并真正重复的相邻段（同能量同亮度＝同一件事）
   const merged=[segs[0]];
   for(let k=1;k<segs.length;k++){ const a=merged[merged.length-1], b=segs[k];
-    if(Math.abs(a.energy-b.energy)<0.13){ const wa=a.end-a.start, wb=b.end-b.start, en=+( (a.energy*wa+b.energy*wb)/(wa+wb) ).toFixed(3); a.end=b.end; a.energy=en; a.intensity=en; }
-    else merged.push(b); }
+    if(Math.abs(a.energy-b.energy)<0.05 && Math.abs(a.br-b.br)<0.08){ const wa=a.end-a.start,wb=b.end-b.start; a.end=b.end; a.energy=+((a.energy*wa+b.energy*wb)/(wa+wb)).toFixed(3); a.intensity=a.energy; } else merged.push(b); }
   return merged;
 }
-// 没 key 的本机粗读（mood/now/label/intensity；内容沿真实段落给）
+// 此刻的「种类」：比对上一段的频段均值，判断主要发生了什么具体事件
+function kindOf(s,p,i){ if(i===0)return 'open';
+  const dT=s.energy-p.energy, dH=s.hi-p.hi, dL=s.lo-p.lo, dB=s.br-p.br;
+  if(dT>0.18)return 'surge'; if(dT<-0.18)return 'drop';
+  if(dH>0.14&&dH>=dL)return 'highin'; if(dL>0.14)return 'lowin'; if(dL<-0.14)return 'lowout';
+  if(dB>0.12)return 'brighten'; if(dB<-0.12)return 'darken';
+  if(s.energy>0.6)return dT>0.04?'lift':'hold'; if(s.energy<0.28)return 'quiet';
+  return dT>0.05?'lift':'flow'; }
+// 每个 kind 给「具体、命名那个声音/动作」的句子（≠ 泛泛情绪）
+const KIND_PH={
+  open:['从一点点声音里起头','安静里，第一缕声音冒出来','先探一下头，轻轻起'],
+  surge:['毫无防备，一下全压上来','猛地撞进来，铺满整片','像浪头一样砸过来','一脚油门顶上去'],
+  drop:['忽然抽空，只剩余响','一下塌下去，空了','地板突然抽走'],
+  highin:['顶上浮起一层亮音','高处的声音亮起来','尖的那层飘上来'],
+  lowin:['底鼓顶进来，往前撞','低频砸下去，沉住','脚下的鼓接上了'],
+  lowout:['抽掉了底，脚下一空','鼓一退，整个飘起来','低音撤了，悬空'],
+  brighten:['被一点点拉亮、变薄','越来越亮、越来越透','慢慢透出光来'],
+  darken:['暗下来、变厚','光收住，沉进去','调子压低了'],
+  lift:['还在往上顶，不肯停','一层压一层，越堆越高','劲还在攒，往上走','把弦越拧越紧'],
+  hold:['顶在最满，咬住不松','撑在最高，不松手','停在最响处，悬着'],
+  quiet:['轻得只剩气声','几乎只剩空气和留白','安静到能听见呼吸'],
+  flow:['稳稳铺着往前走','不紧不慢，往前淌','底子稳稳铺着','顺着劲往前推'] };
+const KIND_LB={open:'开场',surge:'爆发',drop:'跌落',highin:'亮起',lowin:'进鼓',lowout:'抽离',brighten:'提亮',darken:'转暗',lift:'渐强',hold:'顶点',quiet:'留白',flow:'铺垫'};
+// 本机粗读：按"此刻具体发生了什么"给描述（无 key 也尽量具体；真词意要 Gemini）
 function dspFill(){
-  const n=SEGMENTS.length; if(!n)return; let maxI=0; SEGMENTS.forEach((s,i)=>{if(s.energy>SEGMENTS[maxI].energy)maxI=i;});
-  SEGMENTS.forEach((s,i)=>{ const e=s.energy, prev=i>0?SEGMENTS[i-1].energy:e, last=i===n-1, rising=e>prev+0.1, falling=e<prev-0.1;
-    s.intensity=e;
-    // 按真实能量+走向给（不硬设末段；末段低能量才算收束、高能量算尾声冲顶）
-    s.label = i===0?'开场' : i===maxI?'高潮' : rising?'渐强' : (last&&e<0.3)?'收束' : (last)?'尾声' : falling?'回落' : e<0.3?'留白' : '铺垫';
-    s.now = i===0?'从安静里，慢慢起势'
-          : i===maxI?'全推到最满，最用力的一刻'
-          : rising?'一层层往上堆，劲在攒'
-          : (last&&e<0.3)?'慢慢松下来，归于安静'
-          : (last)?'冲到最后，稳稳收尾'
-          : falling?'松下来，退回一点'
-          : e<0.3?'很轻，几乎只剩呼吸和留白'
-          : '稳稳往前走，铺着底色';
-    s.mood = e<0.3?'冷·安静':e<0.6?'暖·期待':'暖·激动'; });
-  SONG.summary='本机粗读：一条由弱到强、再收束的情绪线（填 key 让 AI 真正读懂）';
+  const n=SEGMENTS.length; if(!n)return; const cnt={};
+  SEGMENTS.forEach((s,i)=>{ const p=i?SEGMENTS[i-1]:s; s.kind=kindOf(s,p,i);
+    s.intensity=s.energy; s.label=KIND_LB[s.kind]||'铺垫';
+    const v=KIND_PH[s.kind]||KIND_PH.flow; const k=(cnt[s.kind]=(cnt[s.kind]||0)+1); s.now=v[(k-1)%v.length];
+    const cool=(s.kind==='quiet'||s.kind==='darken'||(s.kind==='drop'&&s.energy<0.45)||s.energy<0.3);
+    s.mood = cool ? (s.energy<0.2?'冷·安静':'冷·清冷') : (s.energy>0.62?'暖·激动':s.br>0.5?'暖·明亮':'暖·期待'); });
+  SONG.summary='本机粗读：跟着声音的进出与起落走（填 key 让 AI 读懂歌词与含义）';
 }
 
 /* ============ 情绪 → 色相 ============ */
@@ -212,7 +233,7 @@ async function vocalStem16k(ab){
 // 本地 Whisper（transformers.js，按需下载，无 key、不上传）
 async function transcribe(a16k){
   if(!window.__asr){ const t=await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'); t.env.allowLocalModels=false;
-    window.__asr=await t.pipeline('automatic-speech-recognition','Xenova/whisper-tiny'); }
+    window.__asr=await t.pipeline('automatic-speech-recognition','Xenova/whisper-base'); }
   return window.__asr(a16k,{return_timestamps:true,chunk_length_s:30,stride_length_s:5});
 }
 
@@ -262,7 +283,7 @@ function segIndexAt(t){ if(!SEGMENTS.length)return -1; let i=0; for(let k=0;k<SE
 let hitCursor=0;
 function drive(t){
   const idx=segIndexAt(t);
-  if(idx!==curIdx){ curIdx=idx; setBgTarget(idx); showNow(idx); } // 换内容 + 变光：都在真实转折(=段边界,已吸附拍)发生
+  if(idx!==curIdx){ curIdx=idx; setBgTarget(idx); showNow(idx); pulse=Math.max(pulse,0.6); } // 换内容 + 变光 + 一起脉动：都在真实转折(已吸附拍)那一刻
   const s=SEGMENTS[curIdx];
   if(s){ bgH=lerpHue(bgH,moodHue(s.mood),0.05); bgI=lerp(bgI,s.intensity,0.05); }
   while(hitCursor<HITS.length && HITS[hitCursor].t<=t){ const h=HITS[hitCursor]; pulse=Math.max(pulse,0.25+h.str*0.5); hitCursor++; }
@@ -306,9 +327,9 @@ $('#seek').onclick=e=>{ const r=$('#seek').getBoundingClientRect(); const p=clam
 const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite'];
 const SCHEMA={ type:'OBJECT', properties:{ summary:{type:'STRING'},
   segments:{type:'ARRAY',items:{type:'OBJECT',properties:{ i:{type:'INTEGER'}, now:{type:'STRING'}, label:{type:'STRING'}, intensity:{type:'NUMBER'}, mood:{type:'STRING'} }, required:['i','now','label','intensity','mood']}} }, required:['summary','segments'] };
-const PROMPT='你在帮人「读懂」一首歌——他们边听边看你的文字。下面是本机沿音乐真实转折切好的段落(每段含能量 energy 0-1，结构已定，勿改 i/start/end)。完整听这段音频后输出 JSON：\n- summary：一句话概括整首(≤22字)。\n- 每段 segments[]：\n  · now：大白话讲「这一段」音乐在干什么、什么感觉。现在时、有画面感、像耳边轻声解说。**不要技术词**(BPM/调式/和弦/分贝)。≤24字。\n  · label：这段角色，二到四字(开场/铺垫/渐强/爆发/副歌/收束)。\n  · intensity：0~1。\n  · mood：「暖」或「冷」+一个情绪词(暖·期待/冷·孤独)。\n基于真实听到的，别套模板。只输出 JSON。';
-// 有人声：词意(以转写歌词为准) + 音乐感觉，合成一份
-const PROMPT_VOCAL='这首歌有人声。给你两样：① 整首歌词（本机已转写，带大致秒数，**词以这份为准，别自己重猜词**；个别字可能有误，按上下文理解）。② 本机沿音乐真实转折切好的段落(每段 energy 0-1)，每段附了这段时间里的歌词。你也能听到音频(用来判断音乐的劲，不要用来重猜词)。\n请：先读懂整首歌词在讲什么(主题/情绪/态度)；再逐段，把『这段歌词在说什么』和『这段音乐在做什么』**合成一句**——说出这一段到底是什么。\n输出 JSON：\n- summary：整首在讲什么(点出主题，≤24字)。\n- 每段 segments[]：\n  · now：结合词意+音乐的此刻解读，**要具体到歌在讲的内容**（比如"他在说想回头，可鼓点越催越急"），别只说"很激昂/很感人"。≤30字。\n  · label：二到四字(主歌/副歌/铺垫/爆发/收束…)。\n  · intensity：0~1。\n  · mood：暖/冷+一个情绪词。\n只输出 JSON。';
+const PROMPT='你在帮人「读懂」一首器乐。下面是本机沿"声音真正变了"的地方切出的一串**时刻**(每个含 energy 0-1 + 本机粗判的此刻变化类型 cue，结构已定，勿改 i)。完整听音频后逐个时刻输出 JSON。\n**铁律：具体＞泛。禁止用"很激昂/很感人/很燃/很有感情/震撼/动人"这类空话。**每个 now 必须点出此刻最突出的**那一个具体变化**——哪个声音进来了/哪个声音抽走了/是突然砸下/突然安静/越来越亮…让人一看就"对，就是这一下"。\n- summary：一句话说这首大致是什么(≤20字)。\n- 每个 segments[]：now=此刻具体在发生什么(现在时、有画面、≤22字，别用 BPM/调式等技术词)；label=二到四字；intensity=0~1；mood=暖/冷+一个情绪词。\n只输出 JSON。';
+// 有人声：那句词 + 那个音乐动作，合成一句具体的话
+const PROMPT_VOCAL='这首歌有人声。给你：① 整首歌词(本机转写，带秒数，**词以这份为准、别重猜**；个别字可能错，按上下文)。② 本机沿"声音真正变了"切出的一串**时刻**(每个含 energy + 此刻变化类型 cue + 这段时间的歌词)。你也能听音频(只用来感受音乐的劲，不要用来重猜词)。\n先读懂整首歌词在讲什么(主题/态度)；再逐个时刻，把『这一刻歌词在说的那句话』和『这一刻音乐在做的那个动作』**合成一句具体的话**。\n**铁律：具体＞泛。禁止"很激昂/很感人/很燃/震撼"这类空话。**必须落到那句词、那个声音上——例如"他唱『我想回家』，鼓却越催越急"、"只剩一句气声『别走』，伴奏全空了"。\n- summary：这首到底在讲什么(点出主题，≤20字)。\n- 每个 segments[]：now=结合那句词+那个音乐动作的具体此刻(≤28字)；label=二到四字(主歌/副歌/桥/爆发…)；intensity=0~1；mood=暖/冷+情绪词。\n只输出 JSON。';
 function u8ToB64(u8){ let s='';const C=0x8000; for(let i=0;i<u8.length;i+=C)s+=String.fromCharCode.apply(null,u8.subarray(i,i+C)); return btoa(s); }
 function applyAI(data){ if(!data)return false;
   if(data.summary)SONG.summary=String(data.summary).trim();
@@ -335,7 +356,7 @@ $('#aiBtn').onclick=async()=>{
   localStorage.setItem('gk',key);
   const useLy=LYRICS.length>0;
   const facts=SEGMENTS.map((s,i)=>{ const ly=useLy?LYRICS.filter(l=>l.t>=Math.floor(s.start)&&l.t<Math.ceil(s.end)).map(l=>l.text).join(' '):'';
-    return {i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy, lyric:ly}; });
+    return {i,start:+s.start.toFixed(1),end:+s.end.toFixed(1),energy:s.energy, cue:KIND_LB[s.kind]||'', lyric:ly}; });
   const lyricsAll=useLy?LYRICS.map(l=>'['+fmt(l.t)+'] '+l.text).join('\n'):'';
   const promptText=useLy ? (PROMPT_VOCAL+'\n\n【整首歌词】\n'+lyricsAll+'\n\n【段落事实(含每段对应歌词)】\n'+JSON.stringify(facts))
                          : (PROMPT+'\n\n【段落事实】\n'+JSON.stringify(facts));
@@ -356,7 +377,7 @@ window.__state=()=>({ t:+lastT.toFixed(2), playing, dur:+DUR.toFixed(1), idx:cur
   segs:SEGMENTS.length, hasVocal, lyrics:LYRICS.length });
 window.__lyrics=()=>LYRICS;
 window.__transcribeTest=async(sec)=>{ const v=await vocalStem16k(buf); const slice=v.slice(0,Math.min(v.length,16000*(sec||10))); const r=await transcribe(slice); return {ok:true, text:(r&&r.text||'').slice(0,200), chunks:(r&&r.chunks||[]).length}; };
-window.__sections=()=>SEGMENTS.map((s,i)=>({i,t:fmt(s.start)+'–'+fmt(s.end),dur:+(s.end-s.start).toFixed(1),inten:s.intensity,mood:s.mood,now:s.now}));
+window.__sections=()=>SEGMENTS.map((s,i)=>({i,t:fmt(s.start)+'–'+fmt(s.end),dur:+(s.end-s.start).toFixed(1),kind:s.kind,inten:s.intensity,mood:s.mood,now:s.now}));
 window.__boundaries=()=>SEGMENTS.map(s=>+s.start.toFixed(2));
 </script>
 </body>
