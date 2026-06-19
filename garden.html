@@ -155,17 +155,20 @@ function styleFor(va){
     sunny: clamp((pos-0.45)*2,0,1), rain: clamp((0.45-V)*1.2,0,1)*A,
     groundTop: pos>0.5? `hsl(${lerp(95,70,pos)} ${lerp(28,52,pos)}% ${lerp(20,32,pos)}%)` : `hsl(${200} ${10}% ${lerp(8,14,pos*2)}%)`,
     warmH,coolH,sat,light,spiky,open,droop,
-    density: Math.round(lerp(5,22,A)), height: lerp(0.15,0.33,A), sway:A,
+    density: Math.round(lerp(5,13,A)), height: lerp(0.15,0.33,A), sway:A,
     petalFly: V>0?A:0, fall:(V<0?A:0) };
 }
+// 统一成「一种植物」：一根会摇的茎 + 叶 + 沿茎几朵同款花；高度按 hFrac（绘制时封顶）
 function plantSpec(st,rng,xrel,depth,segE,bornSec){
-  const pos=st.pos, fh=(pos>=0.5? st.warmH : st.coolH); const hue=fh[(rng()*fh.length)|0] + (rng()*16-8);
-  const tall=st.height*(0.6+segE*0.9)*(0.7+rng()*0.6)*(0.6+depth*0.6);
-  return { xrel, depth, phase:rng()*7, len:tall, width:lerp(1.6,5,st.A)*(0.6+depth*0.7),
-    dep: st.A>0.6?3:2, branchN: st.A>0.55?3:2, spread:lerp(0.5,0.95,rng()), curve:(rng()*2-1)*0.24, lenDecay:0.72, wDecay:0.6,
-    petals:5+((rng()*4)|0), flowerR:lerp(9,20,st.A)*(0.72+rng()*0.5), open:clamp(st.open+(rng()*0.2-0.1),0,1), droop:st.droop, spiky:st.spiky,
-    hue, sat:st.sat*(0.85+rng()*0.3), light:st.light,
-    stemH: pos>=0.5? lerp(120,90,pos):150, stemS: pos>=0.5? lerp(20,48,pos):10, stemL: pos>=0.5? lerp(30,38,pos):24,
+  const pos=st.pos, fh=(pos>=0.5? st.warmH : st.coolH); const hue=fh[(rng()*fh.length)|0] + (rng()*14-7);
+  const hFrac=clamp(lerp(0.42,0.92,st.A)*(0.6+segE*0.45)*(0.62+depth*0.42)*(0.85+rng()*0.3),0.2,1);
+  return { xrel, depth, phase:rng()*7, hFrac, bend:(rng()*2-1),
+    width:lerp(2,5.5,st.A)*(0.6+depth*0.6),
+    flowerR:lerp(8,16,st.A)*(0.7+depth*0.5)*(0.85+rng()*0.3),
+    petals:6, open:clamp(st.open+(rng()*0.16-0.08),0.05,1), droop:st.droop,
+    nflowers: 3+((segE*2+rng()*2)|0),       // 更多花
+    hue, sat:clamp(st.sat*(0.9+rng()*0.2),12,95), light:st.light,
+    stemH: pos>=0.5? lerp(120,95,pos):140, stemS: pos>=0.5? lerp(22,46,pos):12, stemL: pos>=0.5? lerp(30,40,pos):26,
     born:bornSec, g:0, grown:false };
 }
 
@@ -182,26 +185,31 @@ function drawSky(x,y,w,h,st,glow){
   if(st.rain>0.15){ g.fillStyle=`rgba(8,10,20,${0.25*st.rain})`; g.fillRect(x,y,w,h); }
 }
 function drawGround(x,y,w,h,st){ const gy=y+h*0.78; const gr=g.createLinearGradient(0,gy,0,y+h); gr.addColorStop(0,st.groundTop); gr.addColorStop(1,'#05060a'); g.fillStyle=gr; g.fillRect(x,gy,w,y+h-gy); return gy; }
-function drawBranch(x,y,ang,len,w,depth,p){
-  if(len<5||depth>p.dep)return;
-  const sway=Math.sin(G_WIND*1.1+p.phase+depth)*(0.02+G_SWAY*0.16)*(depth+1);
-  const a=ang+sway, ex=x+Math.cos(a)*len, ey=y+Math.sin(a)*len;
-  const mx=(x+ex)/2+Math.cos(a+Math.PI/2)*len*p.curve, my=(y+ey)/2+Math.sin(a+Math.PI/2)*len*p.curve;
-  g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(mx,my,ex,ey); g.lineWidth=Math.max(0.5,w); g.strokeStyle=p.stemCol; g.lineCap='round'; g.stroke();
-  if(depth>=1){ g.save(); g.translate(mx,my); g.rotate(a); g.beginPath(); g.ellipse(0,0,len*0.25,len*0.11,0,0,7); g.fillStyle=p.leafCol; g.fill(); g.restore(); }
-  if(depth<p.dep){ const n=p.branchN; for(let i=0;i<n;i++){ const sp=p.spread*(i-(n-1)/2); drawBranch(ex,ey,a+sp,len*p.lenDecay,w*p.wDecay,depth+1,p); } }
-  else drawFlower(ex,ey,a,p);
+function drawLeaf(x,y,ang,r,p){ g.save(); g.translate(x,y); g.rotate(ang); g.beginPath(); g.ellipse(r*0.5,0,r*0.55,r*0.24,0,0,7); g.fillStyle=p.leafCol; g.fill(); g.restore(); }
+// 一株：从地面往上一根会摇的茎（按 availH 封顶，绝不长出浏览器），沿茎叶子 + 几朵同款花
+function drawPlant(p,gy){
+  const availH=gy - H*0.085;                 // 顶部留边 → 封顶
+  const H0=availH*p.hFrac*p.g; if(H0<=2)return;
+  const baseX=p.xrel*W, SEG=12; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
+  for(let i=0;i<SEG;i++){ const f=i/SEG, seglen=H0/SEG;
+    const sway=Math.sin(G_WIND*1.0+p.phase+f*2.2)*(0.014+G_SWAY*0.08)*f;     // 越上越摇
+    ang += sway + p.bend*0.014;
+    const nx=px+Math.cos(ang)*seglen, ny=py+Math.sin(ang)*seglen;
+    g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny); g.lineWidth=Math.max(0.6,lerp(p.width,p.width*0.28,f)); g.strokeStyle=p.stemCol; g.lineCap='round'; g.stroke();
+    pts.push({x:nx,y:ny,ang}); px=nx;py=ny; }
+  for(let i=1;i<pts.length-1;i+=2){ const q=pts[i]; drawLeaf(q.x,q.y,q.ang+(i%2?1:-1)*1.0, H0*0.08+6, p); }
+  const bloom=ease(clamp((p.g-0.45)/0.55,0,1)); if(bloom<=0)return;
+  const slots=Math.max(1,p.nflowers);
+  for(let k=0;k<slots;k++){ const idx=Math.max(0,pts.length-1-k*2); const q=pts[idx]; drawFlower(q.x,q.y,q.ang,p,bloom*(k===0?1:0.72)); }
 }
-function drawFlower(x,y,ang,p){
-  const fb=ease(clamp((p.g-0.5)/0.5,0,1)); if(fb<=0)return; const r=p.flowerR*fb*(1+G_PULSE*0.22);
-  const head=p.droop>0.4? Math.PI/2 : ang;
-  if(p.spiky>0.55){ g.fillStyle=p.flowerCol; const sp=6+((p.petals)|0); for(let i=0;i<sp;i++){ const aa=i/sp*Math.PI*2+G_WIND*0.04; const L=r*1.8; g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(aa-0.05)*L,y+Math.sin(aa-0.05)*L); g.lineTo(x+Math.cos(aa+0.05)*L,y+Math.sin(aa+0.05)*L); g.closePath(); g.fill(); }
-    g.beginPath(); g.arc(x,y,r*0.4,0,7); g.fillStyle=p.centerCol; g.fill(); return; }
-  const open=lerp(p.open,p.open*0.35,p.droop);
+function drawFlower(x,y,ang,p,bloom){
+  if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.2);
+  const head=p.droop>0.45? Math.PI*0.5 : ang;        // 负向：花头低垂朝下
+  const open=lerp(p.open,p.open*0.4,p.droop);
   for(let i=0;i<p.petals;i++){ const aa=i/p.petals*Math.PI*2; g.save(); g.translate(x,y); g.rotate(head-Math.PI/2+aa);
-    const off=lerp(r*0.15,r*0.5,open), plen=r*lerp(0.7,1.25,open), pw=r*lerp(0.3,0.5,open);
+    const off=lerp(r*0.15,r*0.5,open), plen=r*lerp(0.7,1.25,open), pw=r*lerp(0.32,0.5,open);
     g.beginPath(); g.moveTo(off,0); g.quadraticCurveTo(off+plen*0.45,-pw,off+plen,0); g.quadraticCurveTo(off+plen*0.45,pw,off,0); g.closePath(); g.fillStyle=p.flowerCol; g.fill(); g.restore(); }
-  g.beginPath(); g.arc(x,y,r*0.28,0,7); g.fillStyle=p.centerCol; g.fill();
+  g.beginPath(); g.arc(x,y,r*0.3,0,7); g.fillStyle=p.centerCol; g.fill();
 }
 
 /* ================= 花园（一个生命体）+ 累积 ================= */
@@ -258,11 +266,10 @@ function loop(){
   if(!GARDEN.plants.length){ g.fillStyle='#0a0a14'; g.fillRect(0,0,W,H); g.fillStyle='rgba(255,255,255,.32)'; g.font='600 17px -apple-system,sans-serif'; g.textAlign='center'; g.fillText('选一首歌 ▶ 放出来，看它边放边长',W/2,H/2); }
   else { drawSky(0,0,W,H,target,LIVE); const gy=drawGround(0,0,W,H,target);
     const list=GARDEN.plants.slice().sort((a,b)=>a.depth-b.depth);
-    for(const p of list){ if(p.g<=0)continue; const px=p.xrel*W, py=gy, scale=lerp(0.45,1.25,p.depth), haze=lerp(0.45,1,p.depth);
-      g.save(); g.translate(px,py); g.scale(scale,scale); g.globalAlpha=haze;
-      p.stemCol=`hsl(${p.stemH} ${p.stemS}% ${p.stemL}%)`; p.leafCol=`hsl(${p.stemH} ${p.stemS*0.9}% ${p.stemL+8}%)`;
+    for(const p of list){ if(p.g<=0)continue;
+      p.stemCol=`hsl(${p.stemH} ${p.stemS}% ${p.stemL}%)`; p.leafCol=`hsl(${p.stemH} ${p.stemS*0.9}% ${p.stemL+10}%)`;
       p.flowerCol=`hsl(${(p.hue+360)%360} ${p.sat}% ${p.light}%)`; p.centerCol=`hsl(${(p.hue+30)%360} ${clamp(p.sat+10,0,100)}% ${clamp(p.light+18,0,92)}%)`;
-      drawBranch(0,0,-Math.PI/2,p.len*H*p.g,p.width,0,p); g.restore(); }
+      g.globalAlpha=lerp(0.5,1,p.depth); drawPlant(p,gy); g.globalAlpha=1; }
     stepParticles(dt,target); drawParticles();
   }
   // seek/time
@@ -275,11 +282,19 @@ cv.addEventListener('click',()=>document.body.classList.toggle('clean'));
 /* 飞瓣 / 落雨（跟当前律动） */
 let petals=[];
 function stepParticles(dt,st){
-  if(playing){ if(st.petalFly>0.2 && petals.length<140 && Math.random()<(st.petalFly*0.4+LIVE*0.5)) petals.push({x:rnd(0,W),y:-10,vx:rnd(-8,18),vy:rnd(14,40),r:rnd(3,7),hue:st.warmH[(Math.random()*st.warmH.length)|0],rot:rnd(0,7),kind:'petal'});
-    if(st.fall>0.2 && petals.length<170 && Math.random()<st.fall*0.7) petals.push({x:rnd(0,W),y:-10,vx:rnd(-30,-10),vy:rnd(120,200),r:rnd(1,2),hue:215,rot:0,kind:'rain'}); }
-  for(let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; if(p.kind==='petal'){p.vy+=8*dt;p.x+=Math.sin(G_WIND*2+p.rot)*0.6;p.rot+=dt;} if(p.y>H+20)petals.splice(i,1); }
+  if(playing){
+    // 落叶（常有，能量越高越多）
+    if(petals.length<130 && Math.random()<0.13+LIVE*0.5){ const lh=[100,80,55,38][(Math.random()*4)|0];
+      petals.push({x:rnd(0,W),y:-14,vx:rnd(-16,16),vy:rnd(16,40),r:rnd(6,12),hue:lh,sat:rnd(35,55),rot:rnd(0,7),spin:rnd(-1.4,1.4),sw:rnd(0.5,1.3),kind:'leaf'}); }
+    // 花瓣（暖歌额外飘，呼应「开花」）
+    if(st.petalFly>0.25 && petals.length<170 && Math.random()<st.petalFly*0.35) petals.push({x:rnd(0,W),y:-10,vx:rnd(-10,16),vy:rnd(20,46),r:rnd(3,6),hue:st.warmH[(Math.random()*st.warmH.length)|0],sat:80,rot:rnd(0,7),spin:rnd(-2,2),sw:1,kind:'petal'});
+  }
+  for(let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.vy+=6*dt; p.x+=p.vx*dt+Math.sin(G_WIND*1.6+p.rot)*p.sw; p.y+=p.vy*dt; p.rot+=p.spin*dt; if(p.y>H+22)petals.splice(i,1); }
 }
-function drawParticles(){ for(const p of petals){ if(p.kind==='rain'){ g.strokeStyle='rgba(150,180,220,.35)';g.lineWidth=1;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(p.x-p.vx*0.05,p.y-p.vy*0.05);g.stroke(); } else { g.save();g.translate(p.x,p.y);g.rotate(p.rot);g.fillStyle=`hsla(${p.hue},80%,70%,.85)`;g.beginPath();g.ellipse(0,0,p.r,p.r*0.5,0,0,7);g.fill();g.restore(); } } }
+function drawParticles(){ for(const p of petals){ g.save(); g.translate(p.x,p.y); g.rotate(p.rot);
+  if(p.kind==='leaf'){ g.fillStyle=`hsla(${p.hue},${p.sat}%,48%,.85)`; g.beginPath(); g.ellipse(0,0,p.r,p.r*0.42,0,0,7); g.fill(); g.strokeStyle=`hsla(${p.hue},${p.sat}%,30%,.5)`; g.lineWidth=0.6; g.beginPath(); g.moveTo(-p.r,0); g.lineTo(p.r,0); g.stroke(); }
+  else { g.fillStyle=`hsla(${p.hue},82%,70%,.85)`; g.beginPath(); g.ellipse(0,0,p.r,p.r*0.5,0,0,7); g.fill(); }
+  g.restore(); } }
 
 /* ================= 载入 + 分析 ================= */
 async function getAnalysis(song){ if(AN[song.id])return AN[song.id];
