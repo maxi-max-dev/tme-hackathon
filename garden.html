@@ -145,16 +145,15 @@ function analyze(ab){
 /* ================= VA → 花园风格（复用） ================= */
 function styleFor(va){
   const V=va.valence, A=va.arousal, pos=(V+1)/2;
-  const warmH=[45,28,12,330,300], coolH=[212,232,260,280,190];
-  const sat=clamp(18+pos*72, 16, 92), light=clamp(40+pos*26 + A*6, 38, 78);
-  const spiky=clamp((-V)*1.3,0,1)*clamp((A-0.5)*2.4,0,1);
-  const open=clamp(0.15+pos*0.95,0.05,1), droop=clamp((0.5-V)*1.3,0,1);
-  return { V,A,pos,
-    skyTop: pos>0.5? `hsl(${lerp(220,205,pos)} ${lerp(35,62,pos)}% ${lerp(40,74,pos)}%)` : `hsl(${lerp(225,230,1-pos)} ${lerp(16,26,pos*2)}% ${lerp(12,30,pos*2)}%)`,
-    skyBot: pos>0.5? `hsl(${lerp(60,40,pos)} ${lerp(40,80,pos)}% ${lerp(60,82,pos)}%)` : `hsl(${230} ${14}% ${lerp(8,16,pos*2)}%)`,
-    sunny: clamp((pos-0.45)*2,0,1), rain: clamp((0.45-V)*1.2,0,1)*A,
-    groundTop: pos>0.5? `hsl(${lerp(95,70,pos)} ${lerp(28,52,pos)}% ${lerp(20,32,pos)}%)` : `hsl(${200} ${10}% ${lerp(8,14,pos*2)}%)`,
-    warmH,coolH,sat,light,spiky,open,droop,
+  const warmH=[42,28,12,340,310,52], coolH=[210,232,262,284,196];
+  const sat=clamp(22+pos*42, 18, 70), light=clamp(48+pos*16, 46, 70);   // 收一收：低饱和、偏柔
+  const open=clamp(0.2+pos*0.9,0.08,1), droop=clamp((0.5-V)*1.2,0,1);
+  const pL=lerp(60,93,pos), pH=(pos>0.5? lerp(48,44,pos):lerp(214,206,1-pos)), pS=(pos>0.5? lerp(22,34,pos):lerp(10,18,pos));
+  const grH=(pos>0.5? lerp(95,78,pos):165), grS=(pos>0.5?lerp(26,38,pos):12);
+  return { V,A,pos, warmH,coolH,sat,light,open,droop,
+    skyTop:`hsl(${pH} ${pS}% ${clamp(pL+4,0,97)}%)`, skyBot:`hsl(${pH} ${clamp(pS+6,0,60)}% ${clamp(pL-7,0,95)}%)`,
+    sunny: clamp((pos-0.3)*1.5,0,1),
+    groundTop:`hsla(${grH},${grS}%,${clamp(pL-16,18,58)}%,0.45)`, groundBot:`hsla(${grH},${grS}%,${clamp(pL-30,10,44)}%,0.7)`,
     density: Math.round(lerp(5,13,A)), height: lerp(0.15,0.33,A), sway:A,
     petalFly: V>0?A:0, fall:(V<0?A:0) };
 }
@@ -179,41 +178,83 @@ addEventListener('resize',resize); resize();
 
 let G_SWAY=0.25, G_PULSE=0, G_WIND=0; // 整园共享的「此刻在听的音乐」律动量
 function drawSky(x,y,w,h,st,glow){
-  const gr=g.createLinearGradient(0,y,0,y+h*0.82); gr.addColorStop(0,st.skyTop); gr.addColorStop(1,st.skyBot); g.fillStyle=gr; g.fillRect(x,y,w,h);
-  const sun=clamp(st.sunny+glow*0.3,0,1);
-  if(sun>0){ const sx=x+w*0.74, sy=y+h*0.22, r=h*0.5*sun; const sg=g.createRadialGradient(sx,sy,0,sx,sy,r); sg.addColorStop(0,`hsla(48,100%,82%,${0.5*sun})`); sg.addColorStop(1,'hsla(48,100%,82%,0)'); g.fillStyle=sg; g.fillRect(x,y,w,h); }
-  if(st.rain>0.15){ g.fillStyle=`rgba(8,10,20,${0.25*st.rain})`; g.fillRect(x,y,w,h); }
+  const gr=g.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,st.skyTop); gr.addColorStop(0.72,st.skyBot); gr.addColorStop(1,st.skyBot); g.fillStyle=gr; g.fillRect(x,y,w,h);
+  // 金色光（暖歌强、随能量微亮）—— "活"一大半来自光
+  const sun=clamp(st.sunny+glow*0.25,0,1);
+  if(sun>0.02){ const sx=x+w*0.72, sy=y+h*0.18, r=Math.max(w,h)*0.75*sun; const sg=g.createRadialGradient(sx,sy,0,sx,sy,r); sg.addColorStop(0,`hsla(46,95%,86%,${0.42*sun})`); sg.addColorStop(0.5,`hsla(42,80%,80%,${0.14*sun})`); sg.addColorStop(1,'hsla(42,80%,80%,0)'); g.fillStyle=sg; g.fillRect(x,y,w,h); }
+  // 柔和暗角（水彩纸边，聚焦）
+  const vg=g.createRadialGradient(x+w/2,y+h*0.46,h*0.32,x+w/2,y+h*0.5,h); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(30,26,18,0.13)'); g.fillStyle=vg; g.fillRect(x,y,w,h);
 }
-function drawGround(x,y,w,h,st){ const gy=y+h*0.78; const gr=g.createLinearGradient(0,gy,0,y+h); gr.addColorStop(0,st.groundTop); gr.addColorStop(1,'#05060a'); g.fillStyle=gr; g.fillRect(x,gy,w,y+h-gy); return gy; }
-function drawLeaf(x,y,ang,r,p){ g.save(); g.translate(x,y); g.rotate(ang); g.beginPath(); g.ellipse(r*0.5,0,r*0.55,r*0.24,0,0,7); g.fillStyle=p.leafCol; g.fill(); g.restore(); }
+function drawGround(x,y,w,h,st){ const gy=y+h*0.84; const gr=g.createLinearGradient(0,gy-h*0.12,0,y+h); gr.addColorStop(0,'rgba(0,0,0,0)'); gr.addColorStop(0.45,st.groundTop); gr.addColorStop(1,st.groundBot); g.fillStyle=gr; g.fillRect(x,gy-h*0.12,w,y+h-(gy-h*0.12)); return gy; }
+// 纵深：远处一层很淡、低饱和的草叶/小花（大气透视 → 一个世界）
+function drawBackdrop(gy,st){
+  const n=14; for(let i=0;i<n;i++){ const r1=hsh(i*3.1+1), r2=hsh(i*7.7+2);
+    const bx=r1*W, bh=lerp(H*0.08,H*0.22,r2), tip=gy-bh, sway=Math.sin(G_WIND*0.8+i)*bh*0.05;
+    g.beginPath(); g.moveTo(bx,gy); g.quadraticCurveTo(bx+sway*0.5,(gy+tip)/2, bx+sway,tip);
+    g.strokeStyle=`hsla(${st.pos>0.5?100:185},${10+st.pos*12}%,${lerp(62,84,st.pos)}%,0.2)`; g.lineWidth=lerp(2,5,r2); g.lineCap='round'; g.stroke();
+    if(r2>0.62){ g.beginPath(); g.arc(bx+sway,tip,lerp(4,8,r1),0,7); g.fillStyle=`hsla(${st.warmH[(r1*st.warmH.length)|0]},28%,82%,0.16)`; g.fill(); } }
+}
+const hsh=a=>{const x=Math.sin(a*12.9898)*43758.5453;return x-Math.floor(x);}; // 0..1 稳定噪声
+// 一片有渐变+半透明的花瓣（水彩感）：从原点沿 +x
+function drawPetal(len,wid,h,s,l,a){
+  const grd=g.createLinearGradient(0,0,len,0);
+  grd.addColorStop(0,`hsla(${h},${s}%,${clamp(l-7,0,100)}%,${a})`);
+  grd.addColorStop(0.55,`hsla(${h},${s}%,${clamp(l+5,0,100)}%,${a*0.9})`);
+  grd.addColorStop(1,`hsla(${(h+8)%360},${Math.max(0,s-12)}%,${clamp(l+18,0,100)}%,${a*0.1})`);
+  g.fillStyle=grd; g.beginPath(); g.moveTo(0,0); g.quadraticCurveTo(len*0.42,-wid,len,0); g.quadraticCurveTo(len*0.42,wid,0,0); g.closePath(); g.fill();
+}
+// 叶子：渐变+半透明+叶脉+微变化（破对称）
+function drawLeaf(x,y,ang,r,p){
+  if(r<3)return; g.save(); g.translate(x,y); g.rotate(ang);
+  const s=p.stemS, l=p.stemL, grd=g.createLinearGradient(0,0,r,0);
+  grd.addColorStop(0,`hsla(${p.stemH},${s}%,${l}%,0.8)`);
+  grd.addColorStop(1,`hsla(${p.stemH},${Math.max(0,s-8)}%,${clamp(l+18,0,100)}%,0.1)`);
+  g.fillStyle=grd; const cw=r*0.26*(0.8+hsh(x+y*0.3)*0.5);
+  g.beginPath(); g.moveTo(0,0); g.quadraticCurveTo(r*0.5,-cw,r,0); g.quadraticCurveTo(r*0.5,cw,0,0); g.closePath(); g.fill();
+  g.strokeStyle=`hsla(${p.stemH},${s}%,${Math.max(0,l-8)}%,0.3)`; g.lineWidth=0.7; g.beginPath();g.moveTo(0,0);g.lineTo(r*0.9,0);g.stroke();
+  g.restore();
+}
 // 一株：从地面往上一根会摇的茎（按 availH 封顶，绝不长出浏览器），沿茎叶子 + 几朵同款花
 function drawPlant(p,gy){
   // 硬封顶：顶部留边 + 花预留；茎的每个点都 clamp，绝不长出浏览器（任何尺寸）
   const minTop=Math.max(56, H*0.10), reserve=H*0.04+22;
   const availH=Math.max(20, gy-minTop-reserve);
   const H0=availH*clamp(p.hFrac,0.2,1)*p.g; if(H0<=2)return;
-  const baseX=p.xrel*W, SEG=14; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
+  const baseX=p.xrel*W, SEG=16; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
   for(let i=0;i<SEG;i++){ const f=i/SEG, seglen=H0/SEG;
     const sway=Math.sin(G_WIND*1.05+p.phase+f*2.2)*(0.02+G_SWAY*0.13)*f;     // 越上越摇 = 舞动
-    ang += sway + p.bend*0.012;
+    const scurve=Math.sin(f*Math.PI*1.3+p.bend*2)*0.05*p.bend;               // 自然 S 弯（破直插）
+    ang += sway + scurve + p.bend*0.009;
     let nx=px+Math.cos(ang)*seglen, ny=py+Math.sin(ang)*seglen; if(ny<minTop)ny=minTop;
-    g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny); g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.3,f)); g.strokeStyle=p.stemCol; g.lineCap='round'; g.stroke();
-    pts.push({x:nx,y:ny,ang}); px=nx;py=ny; }
-  for(let i=1;i<pts.length-1;i+=2){ const q=pts[i]; drawLeaf(q.x,q.y,q.ang+(i%2?1:-1)*1.0, H0*0.075+7, p); }
+    // 茎：渐变（下深上浅）+ 渐细 + 梢半透明
+    g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny);
+    g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.22,f)); g.strokeStyle=`hsla(${p.stemH},${p.stemS}%,${clamp(lerp(p.stemL,p.stemL+14,f),0,100)}%,${lerp(1,0.5,f)})`; g.lineCap='round'; g.stroke();
+    pts.push({x:nx,y:ny,ang,f}); px=nx;py=ny; }
+  // 叶序：黄金角交错（自然生长姿态），越往上越小
+  let la=0; for(let i=2;i<pts.length-1;i++){ if(i%2)continue; const q=pts[i]; la+=2.39996; const side=Math.sin(la)>=0?1:-1;
+    drawLeaf(q.x,q.y, q.ang + side*(0.85+hsh(i+p.phase)*0.5), (H0*0.085+8)*(1-q.f*0.5)*(0.8+hsh(i*1.3+p.phase)*0.5), p); }
   // 花随生长一朵朵慢慢开；全部 clamp 不出界
   const slots=Math.max(2,p.nflowers);
-  for(let k=0;k<slots;k++){ const bloom=ease(clamp((p.g-(0.35+k/slots*0.5))/0.18,0,1)); if(bloom<=0)continue;
+  for(let k=0;k<slots;k++){ const bloom=ease(clamp((p.g-(0.32+k/slots*0.5))/0.18,0,1)); if(bloom<=0)continue;
     const idx=Math.max(0,pts.length-1-k*2), q=pts[idx], fy=Math.max(q.y, minTop+p.flowerR*1.2);
-    drawFlower(q.x,fy,q.ang,p,bloom*(k===0?1:0.78)); }
+    drawFlower(q.x,fy,q.ang,p,bloom*(k===0?1:0.8)); }
 }
 function drawFlower(x,y,ang,p,bloom){
-  if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.2);
-  const head=p.droop>0.45? Math.PI*0.5 : ang;        // 负向：花头低垂朝下
-  const open=lerp(p.open,p.open*0.4,p.droop);
-  for(let i=0;i<p.petals;i++){ const aa=i/p.petals*Math.PI*2; g.save(); g.translate(x,y); g.rotate(head-Math.PI/2+aa);
-    const off=lerp(r*0.15,r*0.5,open), plen=r*lerp(0.7,1.25,open), pw=r*lerp(0.32,0.5,open);
-    g.beginPath(); g.moveTo(off,0); g.quadraticCurveTo(off+plen*0.45,-pw,off+plen,0); g.quadraticCurveTo(off+plen*0.45,pw,off,0); g.closePath(); g.fillStyle=p.flowerCol; g.fill(); g.restore(); }
-  g.beginPath(); g.arc(x,y,r*0.3,0,7); g.fillStyle=p.centerCol; g.fill();
+  if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.16);
+  // 水彩底晕（柔和半透明，叠出层次）
+  const wash=g.createRadialGradient(x,y,0,x,y,r*1.8);
+  wash.addColorStop(0,`hsla(${p.hue},${p.sat}%,${clamp(p.light+8,0,100)}%,0.20)`); wash.addColorStop(1,`hsla(${p.hue},${p.sat}%,${p.light}%,0)`);
+  g.fillStyle=wash; g.beginPath(); g.arc(x,y,r*1.8,0,7); g.fill();
+  const head=p.droop>0.45? Math.PI*0.5 : ang, open=lerp(p.open,p.open*0.4,p.droop);
+  for(let i=0;i<p.petals;i++){ const base=i/p.petals*Math.PI*2;
+    const jl=0.78+hsh(p.phase*9+i*2.3)*0.5, jw=0.78+hsh(p.phase*5+i*1.7)*0.5, ja=(hsh(p.phase*3+i*1.1)-0.5)*0.32, jh=(hsh(i+p.phase*2)-0.5)*12;
+    g.save(); g.translate(x,y); g.rotate(head-Math.PI/2+base+ja);
+    const off=lerp(r*0.1,r*0.4,open), len=r*lerp(0.7,1.25,open)*jl, wid=r*lerp(0.3,0.5,open)*jw;
+    g.translate(off,0); drawPetal(len,wid,(p.hue+jh+360)%360,p.sat,p.light,0.82); g.restore(); }
+  // 金色花心（光点）
+  const cg=g.createRadialGradient(x,y,0,x,y,r*0.55);
+  cg.addColorStop(0,'hsla(46,92%,82%,0.95)'); cg.addColorStop(0.55,'hsla(42,80%,66%,0.5)'); cg.addColorStop(1,`hsla(${(p.hue+30)%360},${p.sat}%,${p.light}%,0)`);
+  g.fillStyle=cg; g.beginPath();g.arc(x,y,r*0.55,0,7);g.fill();
 }
 
 /* ================= 花园（一个生命体）+ 累积 ================= */
@@ -270,7 +311,7 @@ function loop(){
   // 画
   g.clearRect(0,0,W,H);
   if(!GARDEN.plants.length){ g.fillStyle='#0a0a14'; g.fillRect(0,0,W,H); g.fillStyle='rgba(255,255,255,.32)'; g.font='600 17px -apple-system,sans-serif'; g.textAlign='center'; g.fillText('选一首歌 ▶ 放出来，看它边放边长',W/2,H/2); }
-  else { drawSky(0,0,W,H,target,LIVE); const gy=drawGround(0,0,W,H,target);
+  else { drawSky(0,0,W,H,target,LIVE); const gy=drawGround(0,0,W,H,target); drawBackdrop(gy,target);
     const list=GARDEN.plants.slice().sort((a,b)=>a.depth-b.depth);
     for(const p of list){ if(p.g<=0)continue;
       p.stemCol=`hsl(${p.stemH} ${p.stemS}% ${p.stemL}%)`; p.leafCol=`hsl(${p.stemH} ${p.stemS*0.9}% ${p.stemL+10}%)`;
