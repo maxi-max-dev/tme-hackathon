@@ -54,9 +54,10 @@
     <input id="key" type="password" placeholder="Gemini key（AIza…，更准地读情绪，选填）">
     <button class="btn" id="aiBtn">✦ 让 AI 更懂这首歌</button>
     <div class="vatag" id="vatag">—</div>
+    <div class="vatag" id="wx" style="margin-top:2px"></div>
   </div>
 </div>
-<div class="hint" id="hint">选歌 ▶ 放出来 —— 园子会跟着歌「实时慢慢长」，整座园子随这首歌一起摇摆呼吸。多放几首会累积成「你的花园」。点画面可隐藏面板截图。</div>
+<div class="hint" id="hint">选歌 ▶ 放出来 —— 园子「实时慢慢长」+「随天气活起来」(晴/阴/雨/风跟着歌的情绪走，整座园一起动)。多放几首累积成「你的花园」。点画面隐藏面板截图 · 音乐 CC-BY · Kevin MacLeod/incompetech.com</div>
 
 <script>
 "use strict";
@@ -69,10 +70,14 @@ const rnd=(a,b)=>a+Math.random()*(b-a);
 const fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
-const SONGS=[ {id:'happy',name:'欢快 Happy',url:'assets/happy.mp3'},
-  {id:'calm',name:'平静 Calm',url:'assets/calm.mp3'},
-  {id:'epic',name:'激昂 Epic',url:'assets/epic.mp3'},
-  {id:'dark',name:'低沉 Dark',url:'assets/dark.mp3'} ];
+// 真歌：免费/CC-BY（Kevin MacLeod, incompetech.com）。内置曲标定真实情绪(DSP valence 对大调里的悲伤判不准)；上传曲走 DSP+Gemini
+const SONGS=[ {id:'happy',name:'欢快 Happy',url:'assets/happy.mp3',va:{valence:0.7,arousal:0.6}},
+  {id:'epic',name:'激昂 Epic',url:'assets/epic.mp3',va:{valence:0.5,arousal:0.92}},
+  {id:'calm',name:'平静 Calm',url:'assets/calm.mp3',va:{valence:0.25,arousal:0.18}},
+  {id:'tense',name:'紧张 Tense',url:'assets/tense.mp3',va:{valence:-0.4,arousal:0.55}},
+  {id:'sad',name:'忧伤 Sad',url:'assets/sad.mp3',va:{valence:-0.65,arousal:0.2}},
+  {id:'gloom',name:'哀恸 Gloom',url:'assets/gloom.mp3',va:{valence:-0.88,arousal:0.32}},
+  {id:'dark',name:'低沉 Dark',url:'assets/dark.mp3',va:{valence:-0.5,arousal:0.62}} ];
 const AN={};   // id -> {va, buf}
 let selId='happy';
 
@@ -177,14 +182,29 @@ function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth;H=innerHeig
 addEventListener('resize',resize); resize();
 
 let G_SWAY=0.25, G_PULSE=0, G_WIND=0; // 整园共享的「此刻在听的音乐」律动量
+// 天气系统：当前歌的情绪决定天气，整座园所有植物都跟着动
+let G_DROOP=0, G_LADD=0;              // 雨→垂、阴↔晴→暗/亮（加到亮度）
+let WX={wind:0.2,rain:0,bright:1,cloud:0,gust:0};
+let clouds=[], rain=[];
+if(!clouds.length) for(let i=0;i<6;i++) clouds.push({x:Math.random()*1600,y:0.1+Math.random()*0.3,r:80+Math.random()*180,sp:0.3+Math.random()*0.6});
 function drawSky(x,y,w,h,st,glow){
   const gr=g.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,st.skyTop); gr.addColorStop(0.72,st.skyBot); gr.addColorStop(1,st.skyBot); g.fillStyle=gr; g.fillRect(x,y,w,h);
-  // 金色光（暖歌强、随能量微亮）—— "活"一大半来自光
-  const sun=clamp(st.sunny+glow*0.25,0,1);
-  if(sun>0.02){ const sx=x+w*0.72, sy=y+h*0.18, r=Math.max(w,h)*0.75*sun; const sg=g.createRadialGradient(sx,sy,0,sx,sy,r); sg.addColorStop(0,`hsla(46,95%,86%,${0.42*sun})`); sg.addColorStop(0.5,`hsla(42,80%,80%,${0.14*sun})`); sg.addColorStop(1,'hsla(42,80%,80%,0)'); g.fillStyle=sg; g.fillRect(x,y,w,h); }
-  // 柔和暗角（水彩纸边，聚焦）
-  const vg=g.createRadialGradient(x+w/2,y+h*0.46,h*0.32,x+w/2,y+h*0.5,h); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(30,26,18,0.13)'); g.fillStyle=vg; g.fillRect(x,y,w,h);
+  // 阴：灰罩 + 飘云（负向 = 阴）
+  if(WX.cloud>0.05){ g.fillStyle=`rgba(118,122,134,${WX.cloud*0.30})`; g.fillRect(x,y,w,h);
+    for(const c of clouds){ const cx=((c.x+G_WIND*c.sp*9)%(w+360))-180, cy=y+h*c.y, cr=c.r;
+      const cg=g.createRadialGradient(cx,cy,0,cx,cy,cr); cg.addColorStop(0,`rgba(186,190,202,${WX.cloud*0.5})`); cg.addColorStop(1,'rgba(186,190,202,0)'); g.fillStyle=cg; g.beginPath(); g.ellipse(cx,cy,cr,cr*0.5,0,0,7); g.fill(); } }
+  // 金色光（晴/正向强；阴天压低）—— "活"一大半来自光
+  const sun=clamp((WX.bright-0.7)*1.7,0,1)*clamp(1-WX.cloud*1.1,0,1);
+  if(sun>0.02){ const sx=x+w*0.72, sy=y+h*0.18, r=Math.max(w,h)*0.8*sun; const sg=g.createRadialGradient(sx,sy,0,sx,sy,r); sg.addColorStop(0,`hsla(46,95%,86%,${0.42*sun})`); sg.addColorStop(0.5,`hsla(42,80%,80%,${0.14*sun})`); sg.addColorStop(1,'hsla(42,80%,80%,0)'); g.fillStyle=sg; g.fillRect(x,y,w,h); }
+  const vg=g.createRadialGradient(x+w/2,y+h*0.46,h*0.32,x+w/2,y+h*0.5,h); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(30,26,18,${0.12+WX.cloud*0.14})`); g.fillStyle=vg; g.fillRect(x,y,w,h);
 }
+// 雨：负向越强、能量越高 → 雨越大越斜（画在植物之上）
+function drawRain(){ if(WX.rain<0.05)return; const n=Math.round(WX.rain*WX.rain*240), slant=5+G_SWAY*20, off=G_WIND*( -700-WX.rain*900 );
+  g.strokeStyle=`rgba(172,192,216,${0.18+WX.rain*0.32})`; g.lineWidth=1+WX.rain*0.8;
+  for(let i=0;i<n;i++){ const x=(hsh(i*1.73)*W*1.2-W*0.1), y=(((hsh(i*3.31)*H) - off*(0.6+hsh(i)*0.6))%H+H)%H, len=9+WX.rain*20;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x-slant*0.45,y+len); g.stroke(); } }
+function weatherName(){ const r=WX.rain,c=WX.cloud,b=WX.bright,w=WX.wind;
+  if(r>0.4)return w>0.85?'🌧️ 暴雨·狂风':'🌧️ 阴雨'; if(c>0.45)return '☁️ 阴沉'; if(b>1.0)return w>0.7?'☀️ 晴·活泼风':'☀️ 暖阳·轻风'; if(w>0.85)return '🌬️ 大风'; return '🌤️ 微风'; }
 function drawGround(x,y,w,h,st){ const gy=y+h*0.84; const gr=g.createLinearGradient(0,gy-h*0.12,0,y+h); gr.addColorStop(0,'rgba(0,0,0,0)'); gr.addColorStop(0.45,st.groundTop); gr.addColorStop(1,st.groundBot); g.fillStyle=gr; g.fillRect(x,gy-h*0.12,w,y+h-(gy-h*0.12)); return gy; }
 // 纵深：远处一层很淡、低饱和的草叶/小花（大气透视 → 一个世界）
 function drawBackdrop(gy,st){
@@ -197,6 +217,7 @@ function drawBackdrop(gy,st){
 const hsh=a=>{const x=Math.sin(a*12.9898)*43758.5453;return x-Math.floor(x);}; // 0..1 稳定噪声
 // 一片有渐变+半透明的花瓣（水彩感）：从原点沿 +x
 function drawPetal(len,wid,h,s,l,a){
+  l=l+G_LADD;                               // 天气明暗
   const grd=g.createLinearGradient(0,0,len,0);
   grd.addColorStop(0,`hsla(${h},${s}%,${clamp(l-7,0,100)}%,${a})`);
   grd.addColorStop(0.55,`hsla(${h},${s}%,${clamp(l+5,0,100)}%,${a*0.9})`);
@@ -206,7 +227,7 @@ function drawPetal(len,wid,h,s,l,a){
 // 叶子：渐变+半透明+叶脉+微变化（破对称）
 function drawLeaf(x,y,ang,r,p){
   if(r<3)return; g.save(); g.translate(x,y); g.rotate(ang);
-  const s=p.stemS, l=p.stemL, grd=g.createLinearGradient(0,0,r,0);
+  const s=p.stemS, l=clamp(p.stemL+G_LADD,0,100), grd=g.createLinearGradient(0,0,r,0);
   grd.addColorStop(0,`hsla(${p.stemH},${s}%,${l}%,0.8)`);
   grd.addColorStop(1,`hsla(${p.stemH},${Math.max(0,s-8)}%,${clamp(l+18,0,100)}%,0.1)`);
   g.fillStyle=grd; const cw=r*0.26*(0.8+hsh(x+y*0.3)*0.5);
@@ -222,13 +243,14 @@ function drawPlant(p,gy){
   const H0=availH*clamp(p.hFrac,0.2,1)*p.g; if(H0<=2)return;
   const baseX=p.xrel*W, SEG=16; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
   for(let i=0;i<SEG;i++){ const f=i/SEG, seglen=H0/SEG;
-    const sway=Math.sin(G_WIND*1.05+p.phase+f*2.2)*(0.02+G_SWAY*0.13)*f;     // 越上越摇 = 舞动
+    const sway=Math.sin(G_WIND*1.05+p.phase+f*2.2)*(0.02+G_SWAY*0.13)*f;     // 越上越摇 = 风/舞动
     const scurve=Math.sin(f*Math.PI*1.3+p.bend*2)*0.05*p.bend;               // 自然 S 弯（破直插）
-    ang += sway + scurve + p.bend*0.009;
+    ang += sway + scurve + p.bend*0.009 + G_DROOP*0.05*f;                     // 风/雨 → 倾斜/下垂
+    const lim=0.5+G_DROOP*0.55; ang=clamp(ang, -Math.PI/2-lim, -Math.PI/2+lim); // 弯折上限：优雅倾斜不折断
     let nx=px+Math.cos(ang)*seglen, ny=py+Math.sin(ang)*seglen; if(ny<minTop)ny=minTop;
-    // 茎：渐变（下深上浅）+ 渐细 + 梢半透明
+    // 茎：渐变（下深上浅）+ 渐细 + 梢半透明 + 天气明暗
     g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny);
-    g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.22,f)); g.strokeStyle=`hsla(${p.stemH},${p.stemS}%,${clamp(lerp(p.stemL,p.stemL+14,f),0,100)}%,${lerp(1,0.5,f)})`; g.lineCap='round'; g.stroke();
+    g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.22,f)); g.strokeStyle=`hsla(${p.stemH},${p.stemS}%,${clamp(lerp(p.stemL,p.stemL+14,f)+G_LADD,0,100)}%,${lerp(1,0.5,f)})`; g.lineCap='round'; g.stroke();
     pts.push({x:nx,y:ny,ang,f}); px=nx;py=ny; }
   // 叶序：黄金角交错（自然生长姿态），越往上越小
   let la=0; for(let i=2;i<pts.length-1;i++){ if(i%2)continue; const q=pts[i]; la+=2.39996; const side=Math.sin(la)>=0?1:-1;
@@ -241,11 +263,12 @@ function drawPlant(p,gy){
 }
 function drawFlower(x,y,ang,p,bloom){
   if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.16);
+  const lw=clamp(p.light+G_LADD,0,100), dr=Math.max(p.droop,G_DROOP);   // 天气：明暗 + 雨垂闭
   // 水彩底晕（柔和半透明，叠出层次）
   const wash=g.createRadialGradient(x,y,0,x,y,r*1.8);
-  wash.addColorStop(0,`hsla(${p.hue},${p.sat}%,${clamp(p.light+8,0,100)}%,0.20)`); wash.addColorStop(1,`hsla(${p.hue},${p.sat}%,${p.light}%,0)`);
+  wash.addColorStop(0,`hsla(${p.hue},${p.sat}%,${clamp(lw+8,0,100)}%,0.20)`); wash.addColorStop(1,`hsla(${p.hue},${p.sat}%,${lw}%,0)`);
   g.fillStyle=wash; g.beginPath(); g.arc(x,y,r*1.8,0,7); g.fill();
-  const head=p.droop>0.45? Math.PI*0.5 : ang, open=lerp(p.open,p.open*0.4,p.droop);
+  const head=dr>0.45? Math.PI*0.5 : ang, open=lerp(p.open,p.open*0.4,dr);
   for(let i=0;i<p.petals;i++){ const base=i/p.petals*Math.PI*2;
     const jl=0.78+hsh(p.phase*9+i*2.3)*0.5, jw=0.78+hsh(p.phase*5+i*1.7)*0.5, ja=(hsh(p.phase*3+i*1.1)-0.5)*0.32, jh=(hsh(i+p.phase*2)-0.5)*12;
     g.save(); g.translate(x,y); g.rotate(head-Math.PI/2+base+ja);
@@ -299,7 +322,14 @@ function loop(){
   if(playing){ const e=liveEnergy(); LIVE=lerp(LIVE,clamp(e*2.2,0,1),0.35);
     if(e-prevE>0.018){ beatHold=Math.max(beatHold,clamp((e-prevE)*11,0,1)); } prevE=e; }
   else { LIVE*=0.94; }
-  beatHold*=0.88; G_PULSE=beatHold; G_SWAY=0.18+LIVE*1.4; G_WIND+=dt*(0.7+LIVE*1.4);
+  beatHold*=0.88; G_PULSE=beatHold;
+  // ===== 天气：当前歌（停了用累积均值）的 VA → 天气量，整座园共享 =====
+  let V=0,A=0.3; if(playing&&curVA){V=curVA.valence;A=curVA.arousal;} else if(GARDEN.songs.length){let sv=0,sa=0;GARDEN.songs.forEach(s=>{sv+=s.va.valence;sa+=s.va.arousal;});V=sv/GARDEN.songs.length;A=sa/GARDEN.songs.length;}
+  WX.gust=WX.gust*0.95 + (Math.random()<0.025? Math.random()*(0.25+A*0.8):0);          // 阵风
+  const windT=0.12 + A*0.55 + LIVE*0.8 + WX.gust, rainT=clamp((0.15-V)*1.5,0,1)*(0.4+A*0.6), brightT=clamp((V+0.45)*0.95,0.25,1.25), cloudT=clamp(0.1-V,0,1);
+  WX.wind=lerp(WX.wind,windT,0.06); WX.rain=lerp(WX.rain,rainT,0.035); WX.bright=lerp(WX.bright,brightT,0.035); WX.cloud=lerp(WX.cloud,cloudT,0.03);
+  G_SWAY=WX.wind; G_DROOP=WX.rain*0.7; G_LADD=(WX.bright-1)*16; G_WIND+=dt*(0.7+WX.wind*1.3);
+  $('#wx').textContent=(playing||GARDEN.songs.length)?('天气 '+weatherName()):'';
   // 实时生长：当前歌的植株按播放时间长
   const t=songTime();
   if(playing&&curVA){ lastT=t%curVA.dur;
@@ -317,7 +347,7 @@ function loop(){
       p.stemCol=`hsl(${p.stemH} ${p.stemS}% ${p.stemL}%)`; p.leafCol=`hsl(${p.stemH} ${p.stemS*0.9}% ${p.stemL+10}%)`;
       p.flowerCol=`hsl(${(p.hue+360)%360} ${p.sat}% ${p.light}%)`; p.centerCol=`hsl(${(p.hue+30)%360} ${clamp(p.sat+10,0,100)}% ${clamp(p.light+18,0,92)}%)`;
       g.globalAlpha=lerp(0.5,1,p.depth); drawPlant(p,gy); g.globalAlpha=1; }
-    stepParticles(dt,target); drawParticles();
+    stepParticles(dt,target); drawParticles(); drawRain();
   }
   // seek/time
   if(curVA){ $('#seek i').style.width=(lastT/curVA.dur*100)+'%'; $('#time').textContent=fmt(lastT)+'/'+fmt(curVA.dur); }
@@ -331,7 +361,7 @@ let petals=[];
 function stepParticles(dt,st){
   if(playing){
     // 落叶（常有，能量越高越多）
-    if(petals.length<130 && Math.random()<0.13+LIVE*0.5){ const lh=[100,80,55,38][(Math.random()*4)|0];
+    if(petals.length<130 && Math.random()<(0.13+LIVE*0.5)*(1-WX.rain*0.8)){ const lh=[100,80,55,38][(Math.random()*4)|0];
       petals.push({x:rnd(0,W),y:-14,vx:rnd(-16,16),vy:rnd(16,40),r:rnd(6,12),hue:lh,sat:rnd(35,55),rot:rnd(0,7),spin:rnd(-1.4,1.4),sw:rnd(0.5,1.3),kind:'leaf'}); }
     // 花瓣（暖歌额外飘，呼应「开花」）
     if(st.petalFly>0.25 && petals.length<170 && Math.random()<st.petalFly*0.35) petals.push({x:rnd(0,W),y:-10,vx:rnd(-10,16),vy:rnd(20,46),r:rnd(3,6),hue:st.warmH[(Math.random()*st.warmH.length)|0],sat:80,rot:rnd(0,7),spin:rnd(-2,2),sw:1,kind:'petal'});
@@ -346,7 +376,7 @@ function drawParticles(){ for(const p of petals){ g.save(); g.translate(p.x,p.y)
 /* ================= 载入 + 分析 ================= */
 async function getAnalysis(song){ if(AN[song.id])return AN[song.id];
   $('#status').textContent='分析「'+song.name+'」…'; const ab=await fetch(song.url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();});
-  const buf=await ac().decodeAudioData(ab); const va=analyze(buf); AN[song.id]={va,buf}; return AN[song.id]; }
+  const buf=await ac().decodeAudioData(ab); const va=analyze(buf); if(song.va){va.valence=song.va.valence;va.arousal=song.va.arousal;va.src='设定';} AN[song.id]={va,buf}; return AN[song.id]; }
 function vaText(va){ const m=va.valence>0.15?'正向(暖)':va.valence<-0.15?'负向(冷)':'中性'; const e=va.arousal>0.6?'高能量(猛)':va.arousal<0.35?'低能量(缓)':'中等'; return `<b>${m} · ${e}</b>（${va.src}）<br>valence ${va.valence} · arousal ${va.arousal}`; }
 
 /* ================= UI ================= */
@@ -377,7 +407,7 @@ $('#aiBtn').onclick=async()=>{ const song=SONGS.find(s=>s.id===selId); if(!song)
 
 /* ================= 自测钩子 ================= */
 window.__va=async()=>{ const o={}; for(const s of SONGS.filter(s=>s.url)){ o[s.id]=(await getAnalysis(s)).va; } return o; };
-window.__state=()=>({playing,curId,songT:+lastT.toFixed(1),LIVE:+LIVE.toFixed(2),PULSE:+G_PULSE.toFixed(2),SWAY:+G_SWAY.toFixed(2),plants:GARDEN.plants.length,grown:GARDEN.plants.filter(p=>p.grown).length,songs:GARDEN.songs.map(s=>s.id)});
+window.__state=()=>({playing,curId,songT:+lastT.toFixed(1),LIVE:+LIVE.toFixed(2),plants:GARDEN.plants.length,grown:GARDEN.plants.filter(p=>p.grown).length,songs:GARDEN.songs.map(s=>s.id),wx:{wind:+WX.wind.toFixed(2),rain:+WX.rain.toFixed(2),bright:+WX.bright.toFixed(2),cloud:+WX.cloud.toFixed(2)},weather:weatherName()});
 window.__setT=t=>{ lastT=t; if(playing&&curId){ const s=SONGS.find(x=>x.id===curId); stop(); playSong(s);} };
 renderChips();
 (async()=>{ try{ const a=await getAnalysis(SONGS[0]); $('#vatag').innerHTML=vaText(a.va); $('#status').textContent='准备好了 · 选歌 ▶ 放出来，看它边放边长、跟着歌动'; }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } })();
