@@ -166,7 +166,7 @@ function plantSpec(st,rng,xrel,depth,segE,bornSec){
     width:lerp(2,5.5,st.A)*(0.6+depth*0.6),
     flowerR:lerp(8,16,st.A)*(0.7+depth*0.5)*(0.85+rng()*0.3),
     petals:6, open:clamp(st.open+(rng()*0.16-0.08),0.05,1), droop:st.droop,
-    nflowers: 3+((segE*2+rng()*2)|0),       // 更多花
+    nflowers: 5+((st.A*4+rng()*2)|0),       // 一株就这一棵 → 多开几朵
     hue, sat:clamp(st.sat*(0.9+rng()*0.2),12,95), light:st.light,
     stemH: pos>=0.5? lerp(120,95,pos):140, stemS: pos>=0.5? lerp(22,46,pos):12, stemL: pos>=0.5? lerp(30,40,pos):26,
     born:bornSec, g:0, grown:false };
@@ -188,19 +188,23 @@ function drawGround(x,y,w,h,st){ const gy=y+h*0.78; const gr=g.createLinearGradi
 function drawLeaf(x,y,ang,r,p){ g.save(); g.translate(x,y); g.rotate(ang); g.beginPath(); g.ellipse(r*0.5,0,r*0.55,r*0.24,0,0,7); g.fillStyle=p.leafCol; g.fill(); g.restore(); }
 // 一株：从地面往上一根会摇的茎（按 availH 封顶，绝不长出浏览器），沿茎叶子 + 几朵同款花
 function drawPlant(p,gy){
-  const availH=gy - H*0.085;                 // 顶部留边 → 封顶
-  const H0=availH*p.hFrac*p.g; if(H0<=2)return;
-  const baseX=p.xrel*W, SEG=12; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
+  // 硬封顶：顶部留边 + 花预留；茎的每个点都 clamp，绝不长出浏览器（任何尺寸）
+  const minTop=Math.max(56, H*0.10), reserve=H*0.04+22;
+  const availH=Math.max(20, gy-minTop-reserve);
+  const H0=availH*clamp(p.hFrac,0.2,1)*p.g; if(H0<=2)return;
+  const baseX=p.xrel*W, SEG=14; let px=baseX,py=gy,ang=-Math.PI/2; const pts=[];
   for(let i=0;i<SEG;i++){ const f=i/SEG, seglen=H0/SEG;
-    const sway=Math.sin(G_WIND*1.0+p.phase+f*2.2)*(0.014+G_SWAY*0.08)*f;     // 越上越摇
-    ang += sway + p.bend*0.014;
-    const nx=px+Math.cos(ang)*seglen, ny=py+Math.sin(ang)*seglen;
-    g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny); g.lineWidth=Math.max(0.6,lerp(p.width,p.width*0.28,f)); g.strokeStyle=p.stemCol; g.lineCap='round'; g.stroke();
+    const sway=Math.sin(G_WIND*1.05+p.phase+f*2.2)*(0.02+G_SWAY*0.13)*f;     // 越上越摇 = 舞动
+    ang += sway + p.bend*0.012;
+    let nx=px+Math.cos(ang)*seglen, ny=py+Math.sin(ang)*seglen; if(ny<minTop)ny=minTop;
+    g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny); g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.3,f)); g.strokeStyle=p.stemCol; g.lineCap='round'; g.stroke();
     pts.push({x:nx,y:ny,ang}); px=nx;py=ny; }
-  for(let i=1;i<pts.length-1;i+=2){ const q=pts[i]; drawLeaf(q.x,q.y,q.ang+(i%2?1:-1)*1.0, H0*0.08+6, p); }
-  const bloom=ease(clamp((p.g-0.45)/0.55,0,1)); if(bloom<=0)return;
-  const slots=Math.max(1,p.nflowers);
-  for(let k=0;k<slots;k++){ const idx=Math.max(0,pts.length-1-k*2); const q=pts[idx]; drawFlower(q.x,q.y,q.ang,p,bloom*(k===0?1:0.72)); }
+  for(let i=1;i<pts.length-1;i+=2){ const q=pts[i]; drawLeaf(q.x,q.y,q.ang+(i%2?1:-1)*1.0, H0*0.075+7, p); }
+  // 花随生长一朵朵慢慢开；全部 clamp 不出界
+  const slots=Math.max(2,p.nflowers);
+  for(let k=0;k<slots;k++){ const bloom=ease(clamp((p.g-(0.35+k/slots*0.5))/0.18,0,1)); if(bloom<=0)continue;
+    const idx=Math.max(0,pts.length-1-k*2), q=pts[idx], fy=Math.max(q.y, minTop+p.flowerR*1.2);
+    drawFlower(q.x,fy,q.ang,p,bloom*(k===0?1:0.78)); }
 }
 function drawFlower(x,y,ang,p,bloom){
   if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.2);
@@ -217,12 +221,13 @@ const GARDEN={ plants:[], songs:[] };  // songs: 已种过的 {id,va,st}
 let skyH=255,skyState=null;            // 当前天空（平滑过渡）
 function blendStyle(){ const ss=GARDEN.songs; if(!ss.length)return styleFor({valence:0,arousal:0.3}); if(ss.length===1)return ss[0].st;
   let V=0,A=0; ss.forEach(s=>{V+=s.va.valence;A+=s.va.arousal;}); return styleFor({valence:V/ss.length,arousal:A/ss.length}); }
-function plantSong(va){ const st=styleFor(va), rng=mulberry(((va.valence+2)*9301+va.arousal*4999)|0);
-  const segs=va.segs&&va.segs.length?va.segs:[{start:0,end:1,energy:va.arousal}]; const maxE=Math.max(...segs.map(s=>s.energy),0.01);
-  const n=st.density, list=[];
-  for(let i=0;i<n;i++){ const seg=segs[(i*segs.length/n)|0]||segs[0];
-    const p=plantSpec(st,rng,clamp(0.05+rng()*0.9,0,1),rng(),seg.energy/maxE, seg.start+rng()*1.2); list.push(p); }
-  GARDEN.plants.push(...list); return {st,plants:list};
+// 一首歌 = 一株（累积成一排）
+const XSLOTS=[0.5,0.3,0.7,0.17,0.83,0.42,0.6,0.25,0.75];
+function plantSong(va){ const idx=GARDEN.plants.length, st=styleFor(va), rng=mulberry(((va.valence+2)*9301+va.arousal*4999+idx*131)|0);
+  const xrel=clamp((XSLOTS[idx%XSLOTS.length]||0.5)+(rng()*0.05-0.025),0.08,0.92);
+  const p=plantSpec(st,rng,xrel,0.85,1,0);   // depth 高=主株、靠前清晰
+  p.dur=va.dur||60;
+  GARDEN.plants.push(p); return {st,plants:[p]};
 }
 
 /* ================= 音频：真实播放 + 实时分析（让园子听歌） ================= */
@@ -256,8 +261,9 @@ function loop(){
   beatHold*=0.88; G_PULSE=beatHold; G_SWAY=0.18+LIVE*1.4; G_WIND+=dt*(0.7+LIVE*1.4);
   // 实时生长：当前歌的植株按播放时间长
   const t=songTime();
-  if(playing&&curVA){ if(t<lastT-0.3){ /*loop*/ } lastT=t%curVA.dur;
-    for(const p of GARDEN.plants){ if(p._sid===curId && !p.grown){ p.g=ease(clamp((lastT-p.born)/4,0,1)); if(p.g>=1)p.grown=true; } } }
+  if(playing&&curVA){ lastT=t%curVA.dur;
+    // 慢慢长：整株随整首歌生长（约 85% 处长满），只增不减
+    for(const p of GARDEN.plants){ if(p._sid===curId && !p.grown){ const ng=ease(clamp(lastT/((p.dur||curVA.dur)*0.85),0,1)); p.g=Math.max(p.g,ng); if(p.g>=0.999)p.grown=true; } } }
   // 天空：放歌时偏向当前歌情绪，否则用累积混合
   const target=playing&&curSt?curSt:blendStyle();
   if(!skyState)skyState=target; skyState=target; // 直接用（styleFor 便宜）；色相用 skyH 平滑
