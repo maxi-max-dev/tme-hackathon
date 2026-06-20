@@ -35,6 +35,14 @@
   .vatag{font-size:11px;color:var(--muted);line-height:1.5;}.vatag b{color:#fff;}
   .ui,.hint{transition:opacity .4s ease;}
   body.clean .ui,body.clean .hint{opacity:0;pointer-events:none;}
+  .det summary::-webkit-details-marker{display:none;}
+  #card{position:fixed;z-index:3;left:50%;top:30%;transform:translate(-50%,-10px) scale(.96);opacity:0;pointer-events:none;
+    text-align:center;background:rgba(12,12,22,.5);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:18px;padding:18px 30px;transition:opacity .5s ease,transform .5s cubic-bezier(.2,1,.3,1);box-shadow:0 12px 50px rgba(0,0,0,.5);}
+  #card.on{opacity:1;transform:translate(-50%,0) scale(1);}
+  #card .ct{font-size:12px;letter-spacing:.24em;color:var(--muted);}
+  #card .cn{font-size:30px;font-weight:800;margin:6px 0 4px;background:linear-gradient(180deg,#fff,#dfe8ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  #card .cn.rare{background:linear-gradient(180deg,#ffe9a8,#ffb14e);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 24px rgba(255,200,90,.5);}
+  #card .cs{font-size:12.5px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -42,22 +50,27 @@
 
 <div class="ui">
   <div class="top">
-    <div class="brand">音乐花园 <span>·</span> 一座会听歌、边放边长的园子</div>
+    <div class="brand">音乐花园 <span>·</span> 扔一首歌，看它长出什么</div>
     <div id="status">载入中…</div>
   </div>
   <div class="panel">
-    <div class="lab">选一首歌</div>
+    <div class="lab">扔一首歌进来 🎵</div>
     <div class="chips" id="chips"></div>
-    <label class="chip" style="cursor:pointer;width:100%;text-align:center">⬆ 上传我的歌<input id="file" type="file" accept="audio/*" hidden></label>
-    <div class="transport"><button class="btn solid" id="play" style="width:46px">▶</button><span class="time" id="time">0:00/0:00</span><div class="seek" id="seek"><i></i></div></div>
+    <div class="chips">
+      <button class="chip" id="rnd" style="flex:1;text-align:center">🎲 随机扔一首</button>
+      <label class="chip" style="cursor:pointer;flex:1;text-align:center">⬆ 我的歌<input id="file" type="file" accept="audio/*" hidden></label>
+    </div>
+    <div id="count" class="lab" style="color:#fff;font-weight:700;font-size:12.5px">🌿 已发现 0 株</div>
     <button class="btn" id="clear">🧹 清空花园</button>
-    <input id="key" type="password" placeholder="Gemini key（AIza…，更准地读情绪，选填）">
-    <button class="btn" id="aiBtn">✦ 让 AI 更懂这首歌</button>
-    <div class="vatag" id="vatag">—</div>
+    <details class="det"><summary class="lab" style="cursor:pointer;outline:none">⚙ 更准地读情绪（Gemini，选填）</summary>
+      <input id="key" type="password" placeholder="Gemini key（AIza…）" style="margin-top:6px"><button class="btn" id="aiBtn" style="margin-top:6px">✦ 让 AI 读懂选中的歌</button></details>
+    <div class="vatag" id="vatag"></div>
     <div class="vatag" id="wx" style="margin-top:2px"></div>
+    <div class="transport" style="display:none"><button id="play">▶</button><span id="time"></span><div class="seek" id="seek"><i></i></div></div>
   </div>
 </div>
-<div class="hint" id="hint">选歌 ▶ 放出来 —— 园子「实时慢慢长」+「随天气活起来」(晴/阴/雨/风跟着歌的情绪走，整座园一起动)。多放几首累积成「你的花园」。点画面隐藏面板截图 · 音乐 CC-BY · Kevin MacLeod/incompetech.com</div>
+<div id="card"></div>
+<div class="hint" id="hint">扔一首歌 → 等它揭晓长成的植物 → 收进你的花园，越攒越多。不同情绪的歌长出不同品种(还有稀有✨)。点画面隐藏面板截图 · 音乐 CC-BY · Kevin MacLeod</div>
 
 <script>
 "use strict";
@@ -162,18 +175,33 @@ function styleFor(va){
     density: Math.round(lerp(5,13,A)), height: lerp(0.15,0.33,A), sway:A,
     petalFly: V>0?A:0, fall:(V<0?A:0) };
 }
-// 统一成「一种植物」：一根会摇的茎 + 叶 + 沿茎几朵同款花；高度按 hFrac（绘制时封顶）
-function plantSpec(st,rng,xrel,depth,segE,bornSec){
-  const pos=st.pos, fh=(pos>=0.5? st.warmH : st.coolH); const hue=fh[(rng()*fh.length)|0] + (rng()*14-7);
-  const hFrac=clamp(lerp(0.42,0.92,st.A)*(0.6+segE*0.45)*(0.62+depth*0.42)*(0.85+rng()*0.3),0.2,1);
-  return { xrel, depth, phase:rng()*7, hFrac, bend:(rng()*2-1),
-    width:lerp(2,5.5,st.A)*(0.6+depth*0.6),
-    flowerR:lerp(8,16,st.A)*(0.7+depth*0.5)*(0.85+rng()*0.3),
-    petals:6, open:clamp(st.open+(rng()*0.16-0.08),0.05,1), droop:st.droop,
-    nflowers: 5+((st.A*4+rng()*2)|0),       // 一株就这一棵 → 多开几朵
+// ===== 发现游戏：情绪指纹 + 一点随机 → 不同「品种」(明显不同、出乎意料) =====
+const hsh2=(a,b)=>{const x=Math.sin(a*127.1+b*311.7)*43758.5;return x-Math.floor(x);};
+const ARCH_NOUN={daisy:'雏菊',spike:'风铃草',bell:'铃兰',orb:'蒲公英',thorn:'蓟花',burst:'焰火花',weep:'垂泪兰',frond:'羽蕨'};
+function pickArch(V,A,seed){ const pos=(V+1)/2; let w;
+  if(pos>=0.5&&A>=0.55) w={daisy:3,burst:3,spike:2,bell:1,orb:1};
+  else if(pos>=0.5)     w={daisy:2,frond:2,bell:2,orb:2,spike:1};
+  else if(A>=0.55)      w={thorn:3,burst:2,spike:2,weep:1};
+  else                  w={weep:3,bell:2,frond:2,orb:1,thorn:1};
+  const ks=Object.keys(w); let tot=0; ks.forEach(k=>tot+=w[k]); let r=hsh(seed*9.71+3.3)*tot;
+  for(const k of ks){ r-=w[k]; if(r<=0)return k; } return ks[0]; }
+function plantName(V,A,arch,rare){ const pos=(V+1)/2;
+  const adj=pos>=0.5?(A>=0.55?['灿烂','明媚','欢腾','跃动']:['温柔','恬静','和煦','软糯']):(A>=0.55?['凛冽','躁动','暗涌','锋利']:['忧郁','清冷','寂寥','薄暮']);
+  return (rare?'✨':'')+adj[(hsh2(V,A)*adj.length)|0]+ARCH_NOUN[arch]+(rare?'·珍品':''); }
+// 一株：会摇的茎 + 叶 + 按品种 arch 长出的花头；高度 hFrac（绘制时硬封顶）
+function plantSpec(st,rng,xrel,arch){
+  const pos=st.pos, fh=(pos>=0.5? st.warmH : st.coolH), hue=fh[(rng()*fh.length)|0]+(rng()*14-7), A=st.A;
+  const hMul={daisy:1,spike:1,bell:0.95,orb:0.72,thorn:0.95,burst:1.05,weep:1.05,frond:0.82}[arch]||1;
+  const leafMul={frond:2.8,daisy:0.7,orb:0.45,burst:0.55,thorn:0.5,weep:0.7}[arch]||1;
+  return { arch, xrel, depth:0.85, phase:rng()*7, hFrac:clamp(lerp(0.42,0.9,A)*hMul*(0.85+rng()*0.3),0.2,1), bend:(rng()*2-1), leafMul,
+    width:lerp(2,5.5,A)*0.9,
+    flowerR:lerp(9,18,A)*(0.85+rng()*0.4)*(arch==='daisy'?1.5:arch==='burst'?1.3:arch==='orb'?1.4:1),
+    petals: arch==='daisy'?(13+((rng()*6)|0)) : arch==='bell'?5 : 6,
+    open:clamp(st.open+(rng()*0.16-0.08),0.05,1), droop:clamp(st.droop+((arch==='bell'||arch==='weep')?0.45:0),0,1),
+    nflowers: arch==='daisy'?1 : arch==='spike'?(5+((A*5+rng()*2)|0)) : arch==='bell'?(3+((rng()*2)|0)) : arch==='weep'?(4+((rng()*3)|0)) : arch==='thorn'?(3+((A*3+rng())|0)) : 1,
     hue, sat:clamp(st.sat*(0.9+rng()*0.2),12,95), light:st.light,
-    stemH: pos>=0.5? lerp(120,95,pos):140, stemS: pos>=0.5? lerp(22,46,pos):12, stemL: pos>=0.5? lerp(30,40,pos):26,
-    born:bornSec, g:0, grown:false };
+    stemH: pos>=0.5? lerp(120,95,pos):145, stemS: pos>=0.5? lerp(22,46,pos):14, stemL: pos>=0.5? lerp(30,40,pos):26,
+    g:0, grown:false, rare:false, name:'' };
 }
 
 /* ================= 渲染 ================= */
@@ -252,14 +280,26 @@ function drawPlant(p,gy){
     g.beginPath(); g.moveTo(px,py); g.lineTo(nx,ny);
     g.lineWidth=Math.max(0.7,lerp(p.width,p.width*0.22,f)); g.strokeStyle=`hsla(${p.stemH},${p.stemS}%,${clamp(lerp(p.stemL,p.stemL+14,f)+G_LADD,0,100)}%,${lerp(1,0.5,f)})`; g.lineCap='round'; g.stroke();
     pts.push({x:nx,y:ny,ang,f}); px=nx;py=ny; }
-  // 叶序：黄金角交错（自然生长姿态），越往上越小
-  let la=0; for(let i=2;i<pts.length-1;i++){ if(i%2)continue; const q=pts[i]; la+=2.39996; const side=Math.sin(la)>=0?1:-1;
-    drawLeaf(q.x,q.y, q.ang + side*(0.85+hsh(i+p.phase)*0.5), (H0*0.085+8)*(1-q.f*0.5)*(0.8+hsh(i*1.3+p.phase)*0.5), p); }
-  // 花随生长一朵朵慢慢开；全部 clamp 不出界
-  const slots=Math.max(2,p.nflowers);
-  for(let k=0;k<slots;k++){ const bloom=ease(clamp((p.g-(0.32+k/slots*0.5))/0.18,0,1)); if(bloom<=0)continue;
-    const idx=Math.max(0,pts.length-1-k*2), q=pts[idx], fy=Math.max(q.y, minTop+p.flowerR*1.2);
-    drawFlower(q.x,fy,q.ang,p,bloom*(k===0?1:0.8)); }
+  // 叶序：黄金角交错；frond 品种叶子更密更羽
+  const leafStep=p.arch==='frond'?1:2, lm=p.leafMul||1; let la=0;
+  for(let i=2;i<pts.length-1;i+=leafStep){ const q=pts[i]; la+=2.39996; const side=Math.sin(la)>=0?1:-1;
+    drawLeaf(q.x,q.y, q.ang+side*(0.85+hsh(i+p.phase)*0.5), (H0*0.085+8)*(1-q.f*0.5)*(0.8+hsh(i*1.3+p.phase)*0.5)*lm, p);
+    if(p.arch==='frond') drawLeaf(q.x,q.y, q.ang-side*(0.85+hsh(i*2+p.phase)*0.5), (H0*0.07+6)*(1-q.f*0.5)*lm, p); }
+  drawHead(p,pts,minTop);   // 按品种长出花头（明显不同）
+  if(p.rare && p.g>0.4){ const top=pts[pts.length-1], R=p.flowerR*3.2;   // 稀有：金色光环 + 闪粒
+    const ag=g.createRadialGradient(top.x,top.y,0,top.x,top.y,R); ag.addColorStop(0,`hsla(48,100%,82%,${0.16*p.g})`); ag.addColorStop(1,'hsla(48,100%,82%,0)'); g.fillStyle=ag; g.beginPath();g.arc(top.x,top.y,R,0,7);g.fill();
+    for(let s=0;s<5;s++){ const a=G_WIND*1.5+s*1.3, rr=p.flowerR*(1.7+Math.sin(G_WIND*2+s)*0.4); g.fillStyle='hsla(50,100%,90%,0.7)'; g.beginPath();g.arc(top.x+Math.cos(a)*rr,top.y+Math.sin(a)*rr,1.8,0,7);g.fill(); } }
+}
+function drawHead(p,pts,minTop){
+  const top=pts[pts.length-1], g0=p.g, A=p.arch, fy=t=>Math.max(t.y,minTop+p.flowerR*1.3);
+  if(A==='frond') return;                                            // 蕨：纯羽叶，不开花
+  if(A==='daisy'){ const b=ease(clamp((g0-0.45)/0.5,0,1)); if(b>0) drawFlower(top.x,fy(top),top.ang,p,b); return; }
+  if(A==='orb'){ const b=ease(clamp((g0-0.45)/0.5,0,1)); if(b>0) drawOrb(top.x,fy(top),p,b); return; }
+  if(A==='burst'){ const b=ease(clamp((g0-0.4)/0.5,0,1)); if(b>0) drawBurst(top.x,fy(top),p,b); return; }
+  if(A==='weep'){ const b=ease(clamp((g0-0.4)/0.55,0,1)); if(b>0) drawWeep(top.x,top.y,p,b); return; }
+  const slots=Math.max(2,p.nflowers);                               // spike/bell/thorn：沿茎多朵
+  for(let k=0;k<slots;k++){ const b=ease(clamp((g0-(0.3+k/slots*0.5))/0.18,0,1)); if(b<=0)continue; const q=pts[Math.max(0,pts.length-1-k*2)];
+    if(A==='thorn') drawThorn(q.x,fy(q),q.ang,p,b); else drawFlower(q.x,fy(q),q.ang,p,b); }
 }
 function drawFlower(x,y,ang,p,bloom){
   if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.16);
@@ -279,6 +319,33 @@ function drawFlower(x,y,ang,p,bloom){
   cg.addColorStop(0,'hsla(46,92%,82%,0.95)'); cg.addColorStop(0.55,'hsla(42,80%,66%,0.5)'); cg.addColorStop(1,`hsla(${(p.hue+30)%360},${p.sat}%,${p.light}%,0)`);
   g.fillStyle=cg; g.beginPath();g.arc(x,y,r*0.55,0,7);g.fill();
 }
+// 蓟（冷+猛=尖锐带刺）
+function drawThorn(x,y,ang,p,bloom){ if(bloom<=0)return; const r=p.flowerR*bloom*(1+G_PULSE*0.16), n=7, l=clamp(p.light+G_LADD-6,0,100);
+  for(let i=0;i<n;i++){ const a=ang-Math.PI/2+i/n*Math.PI*2+hsh(i+p.phase)*0.2, L=r*(1.4+hsh(i*3+p.phase)*0.6);
+    g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a-0.05)*L,y+Math.sin(a-0.05)*L);g.lineTo(x+Math.cos(a+0.05)*L,y+Math.sin(a+0.05)*L);g.closePath();
+    g.fillStyle=`hsla(${p.hue},${clamp(p.sat+10,0,100)}%,${l}%,0.85)`;g.fill(); }
+  g.beginPath();g.arc(x,y,r*0.42,0,7);g.fillStyle=`hsla(${p.hue},${p.sat}%,${clamp(l-8,0,100)}%,0.95)`;g.fill(); }
+// 蒲公英（梦幻/空灵=绒球）
+function drawOrb(x,y,p,bloom){ if(bloom<=0)return; const r=p.flowerR*bloom*1.4, n=42, l=clamp(p.light+G_LADD+6,0,100);
+  const w=g.createRadialGradient(x,y,0,x,y,r*1.3); w.addColorStop(0,`hsla(${p.hue},${Math.max(0,p.sat-30)}%,${l}%,0.22)`); w.addColorStop(1,`hsla(${p.hue},${p.sat}%,${l}%,0)`); g.fillStyle=w; g.beginPath();g.arc(x,y,r*1.3,0,7);g.fill();
+  for(let i=0;i<n;i++){ const a=i/n*Math.PI*2+hsh(i)*0.1, L=r*(0.7+hsh(i*5+p.phase)*0.5)+Math.sin(G_WIND*1.4+i)*r*0.05, ex=x+Math.cos(a)*L, ey=y+Math.sin(a)*L;
+    g.strokeStyle=`hsla(${p.hue},${Math.max(0,p.sat-22)}%,${clamp(l+8,0,100)}%,0.5)`;g.lineWidth=0.8;g.beginPath();g.moveTo(x,y);g.lineTo(ex,ey);g.stroke();
+    g.fillStyle=`hsla(${p.hue},${Math.max(0,p.sat-10)}%,${clamp(l+14,0,100)}%,0.7)`;g.beginPath();g.arc(ex,ey,1.4,0,7);g.fill(); }
+  g.beginPath();g.arc(x,y,r*0.14,0,7);g.fillStyle='hsla(45,60%,72%,0.6)';g.fill(); }
+// 焰火花（正+猛=绽放）
+function drawBurst(x,y,p,bloom){ if(bloom<=0)return; const r=p.flowerR*bloom*(1.3+G_PULSE*0.3), n=16, l=clamp(p.light+G_LADD,0,100);
+  for(let i=0;i<n;i++){ const a=i/n*Math.PI*2+G_WIND*0.05, L=r*(1.5+hsh(i*7+p.phase)*0.7), ex=x+Math.cos(a)*L, ey=y+Math.sin(a)*L;
+    const grd=g.createLinearGradient(x,y,ex,ey); grd.addColorStop(0,`hsla(${p.hue},${p.sat}%,${clamp(l+10,0,100)}%,0.9)`); grd.addColorStop(1,`hsla(${(p.hue+20)%360},${p.sat}%,${clamp(l+20,0,100)}%,0)`);
+    g.strokeStyle=grd;g.lineWidth=1.6*bloom;g.lineCap='round';g.beginPath();g.moveTo(x,y);g.lineTo(ex,ey);g.stroke();
+    g.fillStyle=`hsla(${p.hue},90%,${clamp(l+25,0,100)}%,0.8)`;g.beginPath();g.arc(ex,ey,1.8*bloom,0,7);g.fill(); }
+  const cg=g.createRadialGradient(x,y,0,x,y,r*0.7); cg.addColorStop(0,'hsla(48,100%,88%,0.95)'); cg.addColorStop(1,`hsla(${p.hue},${p.sat}%,${l}%,0)`); g.fillStyle=cg; g.beginPath();g.arc(x,y,r*0.7,0,7);g.fill(); }
+// 垂泪兰（负+缓=低垂）
+function drawWeep(x,y,p,bloom){ if(bloom<=0)return; const n=5, len=p.flowerR*4*bloom, l=clamp(p.stemL+G_LADD,0,100);
+  for(let i=0;i<n;i++){ const a=-Math.PI/2+(i-(n-1)/2)*0.5; let px=x,py=y,ang=a;
+    for(let s=0;s<6;s++){ ang+=0.16+Math.sin(G_WIND*1.2+i+s)*0.03; const sl=len/6, nx=px+Math.cos(ang)*sl, ny=py+Math.sin(ang)*sl;
+      g.beginPath();g.moveTo(px,py);g.lineTo(nx,ny);g.strokeStyle=`hsla(${p.stemH},${p.stemS}%,${l}%,${0.7-s*0.08})`;g.lineWidth=1.6-s*0.2;g.lineCap='round';g.stroke(); px=nx;py=ny; }
+    const fr=p.flowerR*0.5*bloom; g.fillStyle=`hsla(${p.hue},${p.sat}%,${clamp(p.light+G_LADD,0,100)}%,0.8)`;g.beginPath();g.arc(px,py,fr,0,7);g.fill();
+    g.fillStyle='hsla(46,80%,80%,0.8)';g.beginPath();g.arc(px,py,fr*0.4,0,7);g.fill(); } }
 
 /* ================= 花园（一个生命体）+ 累积 ================= */
 const GARDEN={ plants:[], songs:[] };  // songs: 已种过的 {id,va,st}
@@ -287,11 +354,13 @@ function blendStyle(){ const ss=GARDEN.songs; if(!ss.length)return styleFor({val
   let V=0,A=0; ss.forEach(s=>{V+=s.va.valence;A+=s.va.arousal;}); return styleFor({valence:V/ss.length,arousal:A/ss.length}); }
 // 一首歌 = 一株（累积成一排）
 const XSLOTS=[0.5,0.3,0.7,0.17,0.83,0.42,0.6,0.25,0.75];
-function plantSong(va){ const idx=GARDEN.plants.length, st=styleFor(va), rng=mulberry(((va.valence+2)*9301+va.arousal*4999+idx*131)|0);
-  const xrel=clamp((XSLOTS[idx%XSLOTS.length]||0.5)+(rng()*0.05-0.025),0.08,0.92);
-  const p=plantSpec(st,rng,xrel,0.85,1,0);   // depth 高=主株、靠前清晰
-  p.dur=va.dur||60;
-  GARDEN.plants.push(p); return {st,plants:[p]};
+function plantSong(va,opts){ opts=opts||{}; const idx=GARDEN.plants.length, st=styleFor(va);
+  const seed=(opts.seed!=null? opts.seed : ((va.valence+2)*9301+va.arousal*4999+idx*131));
+  const rng=mulberry(seed|0);
+  const xrel=clamp((XSLOTS[idx%XSLOTS.length]||0.5)+(rng()*0.06-0.03),0.07,0.93);
+  const arch=pickArch(va.valence,va.arousal, seed+idx*97.13), rare=hsh(seed*3.7+9.1)<0.14;
+  const p=plantSpec(st,rng,xrel,arch); p.rare=rare; p.dur=va.dur||60; p.name=plantName(va.valence,va.arousal,arch,rare);
+  GARDEN.plants.push(p); return {st,plant:p,arch,rare,name:p.name};
 }
 
 /* ================= 音频：真实播放 + 实时分析（让园子听歌） ================= */
@@ -301,7 +370,7 @@ function ac(){ if(!actx){ actx=new (window.AudioContext||window.webkitAudioConte
 function liveEnergy(){ if(!analyser||!playing)return 0; analyser.getByteTimeDomainData(td); let s=0; for(let i=0;i<td.length;i++){const x=(td[i]-128)/128;s+=x*x;} return Math.sqrt(s/td.length); }
 function songTime(){ return playing&&actx? (actx.currentTime-startT):(curVA?lastT:0); }
 let lastT=0;
-function stop(){ playing=false; if(src){try{src.stop();}catch(e){}try{src.disconnect();}catch(e){}src=null;} $('#play').textContent='▶'; }
+function stop(){ playing=false; if(src){try{src.stop();}catch(e){}try{src.disconnect();}catch(e){}src=null;} const pb=$('#play'); if(pb)pb.textContent='▶'; }
 async function playSong(song){
   stop(); ac(); if(actx.state==='suspended')await actx.resume();
   const a=AN[song.id]||await getAnalysis(song); curVA=a.va; curId=song.id; curSt=styleFor(a.va);
@@ -310,9 +379,40 @@ async function playSong(song){
   else { curPlants=GARDEN.plants.filter(p=>p._sid===song.id); }
   // 标记这批属于该歌
   GARDEN.plants.forEach(p=>{ if(p._sid===undefined && curPlants&&curPlants.includes(p)) p._sid=song.id; });
-  src=actx.createBufferSource(); src.buffer=a.buf; src.connect(master); lastT=lastT&&lastT<a.va.dur?lastT:0; startT=actx.currentTime-lastT; src.start(actx.currentTime, lastT%a.va.dur); playing=true; $('#play').textContent='⏸';
-  $('#status').textContent='▶ '+song.name+' 正在长 + 整座园子跟着它动…'; markChips();
+  src=actx.createBufferSource(); src.buffer=a.buf; src.connect(master); lastT=lastT&&lastT<a.va.dur?lastT:0; startT=actx.currentTime-lastT; src.start(actx.currentTime, lastT%a.va.dur); playing=true; const pb=$('#play'); if(pb)pb.textContent='⏸';
+  markChips();
 }
+
+/* ================= 发现游戏：扔歌 → 期待·揭晓 → 收藏 ================= */
+let REVEAL=null;
+function gyNow(){ return H*0.84; }
+async function feedSong(song){ try{
+  stop(); ac(); if(actx.state==='suspended')await actx.resume();
+  $('#status').textContent='聆听「'+song.name+'」，看它长出什么…';
+  const a=AN[song.id]||await getAnalysis(song); curVA=a.va; curId=song.id; curSt=styleFor(a.va);
+  const r=plantSong(a.va, song.rndSeed!=null?{seed:song.rndSeed}:{}); r.plant._sid=curId; r.plant.g=0; r.plant.grown=false;
+  GARDEN.songs.push({id:song.id+'#'+GARDEN.plants.length,va:a.va,st:r.st});
+  REVEAL={p:r.plant, t:0, phase:'listen', name:r.name, rare:r.rare, x:r.plant.xrel*W, burst:0};
+  showCard(false);
+  src=actx.createBufferSource(); src.buffer=a.buf; src.connect(master); startT=actx.currentTime; lastT=0; src.start(); playing=true;
+  updateCount(); markChips();
+}catch(e){ $('#status').textContent='出错：'+((e&&e.message)||e); } }
+function sparkBurst(x,y){ for(let i=0;i<28;i++){ const ang=Math.random()*Math.PI*2, sp=rnd(50,180); petals.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-50,r:rnd(1.5,3.6),hue:48,sat:95,rot:0,spin:0,sw:0,kind:'spark',life:0,max:rnd(0.7,1.2)}); } }
+function advanceReveal(dt){ if(!REVEAL)return; REVEAL.t+=dt; const T=REVEAL.t, p=REVEAL.p;
+  if(T<1.4){ REVEAL.phase='listen'; p.g=0.001; }
+  else if(T<2.9){ REVEAL.phase='grow'; if(!REVEAL.burst){ REVEAL.burst=1; sparkBurst(REVEAL.x, gyNow()-H*0.32); } p.g=ease(clamp((T-1.4)/1.5,0,1)); }
+  else if(T<5.4){ REVEAL.phase='card'; p.g=1; p.grown=true; if(!REVEAL.shown){REVEAL.shown=1; showCard(true); $('#status').textContent='🌱 收进你的花园 · 再扔一首？';} }
+  else { p.g=1; p.grown=true; showCard(false); REVEAL=null; } }
+function drawReveal(){ if(!REVEAL)return; const x=REVEAL.x, gy=gyNow();
+  if(REVEAL.phase==='listen'){ const pr=clamp(REVEAL.t/1.4,0,1);
+    g.fillStyle=`rgba(6,6,12,${0.22*Math.sin(pr*Math.PI)})`; g.fillRect(0,0,W,H);
+    const sy=lerp(-20, gy-12, ease(pr)); const sg=g.createRadialGradient(x,sy,0,x,sy,34); sg.addColorStop(0,'hsla(48,100%,88%,0.95)'); sg.addColorStop(1,'hsla(48,100%,80%,0)'); g.fillStyle=sg; g.beginPath();g.arc(x,sy,34,0,7);g.fill();
+    g.fillStyle='hsla(50,100%,93%,0.95)'; g.beginPath();g.arc(x,sy,3.6,0,7);g.fill();
+    const ggl=g.createRadialGradient(x,gy,0,x,gy,60+50*pr); ggl.addColorStop(0,`hsla(48,90%,80%,${0.32*pr})`); ggl.addColorStop(1,'hsla(48,90%,80%,0)'); g.fillStyle=ggl; g.beginPath();g.arc(x,gy,60+50*pr,0,7);g.fill();
+  } else if(REVEAL.phase==='grow' && REVEAL.t<1.68){ const fl=clamp(1-(REVEAL.t-1.4)/0.28,0,1); g.fillStyle=`rgba(255,250,235,${0.4*fl})`; g.fillRect(0,0,W,H); }
+}
+function showCard(show){ const el=$('#card'); if(!el)return; if(show&&REVEAL){ el.innerHTML='<div class="ct">🌱 你发现了</div><div class="cn'+(REVEAL.rare?' rare':'')+'">'+REVEAL.name+'</div><div class="cs">'+(REVEAL.rare?'✨ 稀有品种':'新品种')+' · 已收进花园</div>'; el.classList.add('on'); } else el.classList.remove('on'); }
+function updateCount(){ const n=GARDEN.plants.length, m=GARDEN.plants.filter(p=>p.rare).length; const el=$('#count'); if(el)el.textContent='🌿 已发现 '+n+' 株'+(m?' · ✨'+m+' 稀有':''); }
 
 /* ================= 主循环 ================= */
 let prev=performance.now();
@@ -330,24 +430,22 @@ function loop(){
   WX.wind=lerp(WX.wind,windT,0.06); WX.rain=lerp(WX.rain,rainT,0.035); WX.bright=lerp(WX.bright,brightT,0.035); WX.cloud=lerp(WX.cloud,cloudT,0.03);
   G_SWAY=WX.wind; G_DROOP=WX.rain*0.7; G_LADD=(WX.bright-1)*16; G_WIND+=dt*(0.7+WX.wind*1.3);
   $('#wx').textContent=(playing||GARDEN.songs.length)?('天气 '+weatherName()):'';
-  // 实时生长：当前歌的植株按播放时间长
-  const t=songTime();
-  if(playing&&curVA){ lastT=t%curVA.dur;
-    // 慢慢长：整株随整首歌生长（约 85% 处长满），只增不减
-    for(const p of GARDEN.plants){ if(p._sid===curId && !p.grown){ const ng=ease(clamp(lastT/((p.dur||curVA.dur)*0.85),0,1)); p.g=Math.max(p.g,ng); if(p.g>=0.999)p.grown=true; } } }
+  // 生长：由「揭晓瞬间」驱动（期待→长出→报名），不再随整首慢长
+  if(playing&&curVA){ lastT=songTime()%curVA.dur; }
+  advanceReveal(dt);
   // 天空：放歌时偏向当前歌情绪，否则用累积混合
   const target=playing&&curSt?curSt:blendStyle();
   if(!skyState)skyState=target; skyState=target; // 直接用（styleFor 便宜）；色相用 skyH 平滑
   // 画
   g.clearRect(0,0,W,H);
-  if(!GARDEN.plants.length){ g.fillStyle='#0a0a14'; g.fillRect(0,0,W,H); g.fillStyle='rgba(255,255,255,.32)'; g.font='600 17px -apple-system,sans-serif'; g.textAlign='center'; g.fillText('选一首歌 ▶ 放出来，看它边放边长',W/2,H/2); }
+  if(!GARDEN.plants.length){ g.fillStyle='#0a0a14'; g.fillRect(0,0,W,H); g.fillStyle='rgba(255,255,255,.32)'; g.font='600 17px -apple-system,sans-serif'; g.textAlign='center'; g.fillText('扔一首歌进来 🎵 看它长出什么',W/2,H/2); }
   else { drawSky(0,0,W,H,target,LIVE); const gy=drawGround(0,0,W,H,target); drawBackdrop(gy,target);
     const list=GARDEN.plants.slice().sort((a,b)=>a.depth-b.depth);
     for(const p of list){ if(p.g<=0)continue;
       p.stemCol=`hsl(${p.stemH} ${p.stemS}% ${p.stemL}%)`; p.leafCol=`hsl(${p.stemH} ${p.stemS*0.9}% ${p.stemL+10}%)`;
       p.flowerCol=`hsl(${(p.hue+360)%360} ${p.sat}% ${p.light}%)`; p.centerCol=`hsl(${(p.hue+30)%360} ${clamp(p.sat+10,0,100)}% ${clamp(p.light+18,0,92)}%)`;
       g.globalAlpha=lerp(0.5,1,p.depth); drawPlant(p,gy); g.globalAlpha=1; }
-    stepParticles(dt,target); drawParticles(); drawRain();
+    stepParticles(dt,target); drawParticles(); drawRain(); drawReveal();
   }
   // seek/time
   if(curVA){ $('#seek i').style.width=(lastT/curVA.dur*100)+'%'; $('#time').textContent=fmt(lastT)+'/'+fmt(curVA.dur); }
@@ -366,10 +464,13 @@ function stepParticles(dt,st){
     // 花瓣（暖歌额外飘，呼应「开花」）
     if(st.petalFly>0.25 && petals.length<170 && Math.random()<st.petalFly*0.35) petals.push({x:rnd(0,W),y:-10,vx:rnd(-10,16),vy:rnd(20,46),r:rnd(3,6),hue:st.warmH[(Math.random()*st.warmH.length)|0],sat:80,rot:rnd(0,7),spin:rnd(-2,2),sw:1,kind:'petal'});
   }
-  for(let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.vy+=6*dt; p.x+=p.vx*dt+Math.sin(G_WIND*1.6+p.rot)*p.sw; p.y+=p.vy*dt; p.rot+=p.spin*dt; if(p.y>H+22)petals.splice(i,1); }
+  for(let i=petals.length-1;i>=0;i--){ const p=petals[i]; p.vy+=(p.kind==='spark'?20:6)*dt; p.x+=p.vx*dt+Math.sin(G_WIND*1.6+p.rot)*p.sw; p.y+=p.vy*dt; p.rot+=p.spin*dt;
+    if(p.kind==='spark'){ p.life+=dt; if(p.life>=p.max){petals.splice(i,1);} continue; }
+    if(p.y>H+22)petals.splice(i,1); }
 }
 function drawParticles(){ for(const p of petals){ g.save(); g.translate(p.x,p.y); g.rotate(p.rot);
-  if(p.kind==='leaf'){ g.fillStyle=`hsla(${p.hue},${p.sat}%,48%,.85)`; g.beginPath(); g.ellipse(0,0,p.r,p.r*0.42,0,0,7); g.fill(); g.strokeStyle=`hsla(${p.hue},${p.sat}%,30%,.5)`; g.lineWidth=0.6; g.beginPath(); g.moveTo(-p.r,0); g.lineTo(p.r,0); g.stroke(); }
+  if(p.kind==='spark'){ const a=clamp(1-p.life/p.max,0,1); const gr=g.createRadialGradient(0,0,0,0,0,p.r*2.2); gr.addColorStop(0,`hsla(50,100%,86%,${a})`); gr.addColorStop(1,'hsla(48,100%,80%,0)'); g.fillStyle=gr; g.beginPath();g.arc(0,0,p.r*2.2,0,7);g.fill(); }
+  else if(p.kind==='leaf'){ g.fillStyle=`hsla(${p.hue},${p.sat}%,48%,.85)`; g.beginPath(); g.ellipse(0,0,p.r,p.r*0.42,0,0,7); g.fill(); g.strokeStyle=`hsla(${p.hue},${p.sat}%,30%,.5)`; g.lineWidth=0.6; g.beginPath(); g.moveTo(-p.r,0); g.lineTo(p.r,0); g.stroke(); }
   else { g.fillStyle=`hsla(${p.hue},82%,70%,.85)`; g.beginPath(); g.ellipse(0,0,p.r,p.r*0.5,0,0,7); g.fill(); }
   g.restore(); } }
 
@@ -380,12 +481,12 @@ async function getAnalysis(song){ if(AN[song.id])return AN[song.id];
 function vaText(va){ const m=va.valence>0.15?'正向(暖)':va.valence<-0.15?'负向(冷)':'中性'; const e=va.arousal>0.6?'高能量(猛)':va.arousal<0.35?'低能量(缓)':'中等'; return `<b>${m} · ${e}</b>（${va.src}）<br>valence ${va.valence} · arousal ${va.arousal}`; }
 
 /* ================= UI ================= */
-function markChips(){ document.querySelectorAll('#chips .chip').forEach(b=>{ b.classList.toggle('sel',b.dataset.id===selId); b.classList.toggle('planted',!!GARDEN.songs.find(s=>s.id===b.dataset.id)); }); }
-function renderChips(){ const c=$('#chips'); c.innerHTML=''; SONGS.forEach(s=>{ const b=document.createElement('button'); b.className='chip'; b.dataset.id=s.id; b.textContent=s.name; b.onclick=async()=>{ selId=s.id; const a=await getAnalysis(s); $('#vatag').innerHTML=vaText(a.va); markChips(); }; c.appendChild(b); }); markChips(); }
-$('#play').onclick=async()=>{ if(playing){ lastT=songTime()%(curVA?curVA.dur:1); stop(); return; } const song=SONGS.find(s=>s.id===selId); if(!song)return; if(curId&&curId!==selId)lastT=0; try{ await playSong(song); }catch(e){ $('#status').textContent='播放失败：'+((e&&e.message)||e); } };
-$('#seek').onclick=e=>{ if(!curVA)return; const r=$('#seek').getBoundingClientRect(); lastT=clamp((e.clientX-r.left)/r.width,0,1)*curVA.dur; if(playing){ const s=SONGS.find(x=>x.id===curId); stop(); playSong(s); } };
-$('#clear').onclick=()=>{ stop(); GARDEN.plants=[];GARDEN.songs=[];petals=[];curId=null;curVA=null;lastT=0; markChips(); $('#status').textContent='已清空'; };
-$('#file').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; try{ const ab=await f.arrayBuffer(); const buf=await ac().decodeAudioData(ab.slice(0)); const va=analyze(buf); const id='up:'+f.name; AN[id]={va,buf}; SONGS.push({id,name:'我的:'+f.name.slice(0,8),url:''}); selId=id; renderChips(); $('#vatag').innerHTML=vaText(va); $('#status').textContent='「'+f.name+'」已读懂 · ▶ 放出来看它长'; }catch(err){ $('#status').textContent='解码失败：'+((err&&err.message)||err); } };
+function markChips(){ document.querySelectorAll('#chips .chip').forEach(b=>{ b.classList.toggle('sel',b.dataset.id===selId); }); }
+function renderChips(){ const c=$('#chips'); c.innerHTML=''; SONGS.forEach(s=>{ const b=document.createElement('button'); b.className='chip'; b.dataset.id=s.id; b.textContent=s.name; b.onclick=()=>{ selId=s.id; feedSong(s); }; c.appendChild(b); }); markChips(); }
+$('#rnd').onclick=()=>{ const pool=SONGS.filter(s=>s.url); if(!pool.length)return; const s=pool[(Math.random()*pool.length)|0]; feedSong({...s, rndSeed:Math.random()*1e6}); };
+$('#clear').onclick=()=>{ stop(); GARDEN.plants=[];GARDEN.songs=[];petals=[];REVEAL=null;curId=null;curVA=null;lastT=0; showCard(false); updateCount(); $('#status').textContent='花园已清空 · 扔一首歌开始'; };
+$('#file').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; try{ const ab=await f.arrayBuffer(); const buf=await ac().decodeAudioData(ab.slice(0)); const va=analyze(buf); const id='up:'+f.name+Math.random().toString(36).slice(2,6); AN[id]={va,buf}; const song={id,name:'我的:'+f.name.slice(0,8),url:''}; SONGS.push(song); renderChips(); feedSong(song); }catch(err){ $('#status').textContent='解码失败：'+((err&&err.message)||err); } };
+const _pb=$('#play'); if(_pb)_pb.onclick=()=>{ const s=SONGS.find(x=>x.id===selId)||SONGS[0]; feedSong(s); };
 
 /* ================= Gemini：更准地读情绪 ================= */
 const GEMINI_MODELS=['gemini-2.5-flash','gemini-1.5-flash','gemini-2.5-flash-lite'];
@@ -409,8 +510,8 @@ $('#aiBtn').onclick=async()=>{ const song=SONGS.find(s=>s.id===selId); if(!song)
 window.__va=async()=>{ const o={}; for(const s of SONGS.filter(s=>s.url)){ o[s.id]=(await getAnalysis(s)).va; } return o; };
 window.__state=()=>({playing,curId,songT:+lastT.toFixed(1),LIVE:+LIVE.toFixed(2),plants:GARDEN.plants.length,grown:GARDEN.plants.filter(p=>p.grown).length,songs:GARDEN.songs.map(s=>s.id),wx:{wind:+WX.wind.toFixed(2),rain:+WX.rain.toFixed(2),bright:+WX.bright.toFixed(2),cloud:+WX.cloud.toFixed(2)},weather:weatherName()});
 window.__setT=t=>{ lastT=t; if(playing&&curId){ const s=SONGS.find(x=>x.id===curId); stop(); playSong(s);} };
-renderChips();
-(async()=>{ try{ const a=await getAnalysis(SONGS[0]); $('#vatag').innerHTML=vaText(a.va); $('#status').textContent='准备好了 · 选歌 ▶ 放出来，看它边放边长、跟着歌动'; }catch(e){ $('#status').textContent='载入失败：'+((e&&e.message)||e); } })();
+renderChips(); updateCount();
+$('#status').textContent='扔一首歌进来 🎵 看它长出什么品种';
 </script>
 </body>
 </html>
