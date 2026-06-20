@@ -564,16 +564,15 @@ async function startBuffer(ab,name,srcUrl){
   intro.style.pointerEvents='none';
   try{
     const buf=await Audio_.load(ab);const fp=fingerprint(buf,name);const spec=genSpec(fp,name);
-    if(Field.live)commitLive();
-    rebuildField();
-    // remove any existing copy of this seed (it becomes the live one)
-    for(let i=Field.things.length-1;i>=0;i--){if(Field.things[i].spec.fp.seed===fp.seed){scene.remove(Field.things[i].group);Field.things.splice(i,1);}}
-    const idx=loadG().length;                         // new slot at the growing edge
-    const t=addThing(spec,idx,{live:true,growthT:0,baseScale:1.7,srcUrl:srcUrl||null});
+    // persist current live, then rebuild: PAST songs orbit the edge, LIVE song sits at the centre (the star)
+    if(Field.live){const g0=loadG(),lf=Field.live.spec.fp;if(!g0.some(x=>x.seed===lf.seed)){g0.push({seed:lf.seed,name:Field.live.spec.name,when:Date.now(),e:lf.energy,b:lf.brightness,d:lf.dynamics,dur:lf.duration,src:Field.live.srcUrl||null});saveG(g0);}}
+    for(const th of Field.things)scene.remove(th.group);Field.things.length=0;Field.live=null;
+    let si=1;for(const it of loadG()){if(it.seed===fp.seed)continue;const psp=genSpec({energy:it.e,brightness:it.b,dynamics:it.d,seed:it.seed,duration:it.dur},it.name);addThing(psp,si++,{growthT:1,baseScale:1.4,srcUrl:it.src||null});}
+    const t=addThing(spec,0,{live:true,growthT:0,baseScale:1.7,srcUrl:srcUrl||null});  // slot 0 = island centre
     Field.live=t;liveSpec=spec;keptThis=false;endedAt=0;
     applyMood(spec.M);buildAmbient(spec.M);
-    // frame the live thing so it's the star
-    Cam.ttarget.set(t.group.position.x,t.group.position.y+3.4,t.group.position.z);Cam.tr=21;Cam.tpo=0.74;Cam.taz=0.7;
+    // SNAP the camera straight onto the centre — no drift, correct on any screen shape
+    Cam.target.set(0,4.2,0);Cam.ttarget.set(0,4.2,0);Cam.r=Cam.tr=19;Cam.az=Cam.taz=0.7;Cam.po=Cam.tpo=0.72;
     Audio_.reset();Audio_.play(onEnd);mode='play';
     npName.textContent=name;npMood.textContent='· '+spec.M.label+' · '+formCN(spec.form);
     document.getElementById('pauseBtn').textContent='暂停';
