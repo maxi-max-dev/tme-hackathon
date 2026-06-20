@@ -3,51 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>音乐花园 · 一首歌长成一座能走进去的岛</title>
+<title>音乐花园 · 一首歌开成一朵花</title>
 <style>
-  :root{--ink:#f3f0ff;--muted:#a7a3c4;--line:rgba(255,255,255,.10);--glass:rgba(18,16,30,.55);
+  :root{--ink:#5b4a52;--muted:#9a8a92;--line:rgba(120,90,100,.16);--glass:rgba(255,250,250,.7);
     --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;height:100%;overflow:hidden;background:#05050c;color:var(--ink);font-family:var(--font);}
+  html,body{margin:0;height:100%;overflow:hidden;background:#f6ece6;color:var(--ink);font-family:var(--font);}
   #gl{position:fixed;inset:0;display:block;touch-action:none;}
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
     text-align:center;padding:24px;z-index:10;transition:opacity .6s;}
   .overlay.hidden{opacity:0;pointer-events:none;}
-  #intro .kicker{font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;}
-  #intro h1{font-size:clamp(26px,5.4vw,50px);font-weight:800;margin:0 0 14px;
-    background:linear-gradient(120deg,#fff,#c9bcff 55%,#7ad7ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  #intro .kicker{font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+  #intro h1{font-size:clamp(26px,5.4vw,50px);font-weight:800;margin:0 0 14px;letter-spacing:.01em;
+    background:linear-gradient(120deg,#e08aa6,#d98f6a 55%,#caa15e);-webkit-background-clip:text;background-clip:text;color:transparent;}
   #intro p.sub{color:var(--muted);font-size:15.5px;margin:0 0 30px;max-width:470px;line-height:1.7;}
-  .drop{width:min(440px,86vw);border:1.5px dashed rgba(255,255,255,.22);border-radius:22px;padding:26px 24px;
-    background:rgba(255,255,255,.03);cursor:pointer;transition:.25s;backdrop-filter:blur(6px);}
-  .drop:hover,.drop.hot{border-color:rgba(160,200,255,.7);background:rgba(120,160,255,.10);transform:translateY(-2px);}
-  .drop .big{font-size:18px;font-weight:700;margin-bottom:6px;}
+  .drop{width:min(440px,86vw);border:1.5px dashed rgba(180,120,140,.4);border-radius:22px;padding:26px 24px;
+    background:rgba(255,255,255,.4);cursor:pointer;transition:.25s;backdrop-filter:blur(6px);}
+  .drop:hover,.drop.hot{border-color:rgba(220,140,160,.8);background:rgba(255,240,244,.7);transform:translateY(-2px);}
+  .drop .big{font-size:18px;font-weight:700;margin-bottom:6px;color:#7a5a64;}
   .drop .small{font-size:12.5px;color:var(--muted);}
   .or{margin:22px 0 12px;color:var(--muted);font-size:12px;letter-spacing:.2em;}
   .seeds{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:560px;}
-  .seed{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);padding:8px 15px;border-radius:999px;
+  .seed{border:1px solid var(--line);background:rgba(255,255,255,.55);color:#6a5a62;padding:8px 15px;border-radius:999px;
     font-size:13.5px;cursor:pointer;transition:.18s;}
-  .seed:hover{background:rgba(255,255,255,.13);transform:translateY(-2px);}
+  .seed:hover{background:#fff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(180,120,140,.18);}
   .seed .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;box-shadow:0 0 8px currentColor;}
+  #loading{color:var(--muted);font-size:13px;margin-top:8px;height:18px;}
   #hud{position:fixed;left:0;right:0;bottom:0;z-index:8;padding:16px 20px 18px;
-    background:linear-gradient(180deg,transparent,rgba(5,5,12,.55));transition:opacity .5s,transform .5s;
+    background:linear-gradient(180deg,transparent,rgba(246,236,230,.7));transition:opacity .5s,transform .5s;
     display:flex;flex-direction:column;gap:9px;align-items:center;}
   #hud.hidden{opacity:0;pointer-events:none;transform:translateY(14px);}
   .npline{display:flex;align-items:baseline;gap:11px;justify-content:center;flex-wrap:wrap;}
-  .npname{font-size:15px;font-weight:700;max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .npname{font-size:15px;font-weight:700;color:#6a5a62;max-width:62vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .npmood{font-size:12px;color:var(--muted);}
-  .bar{width:min(540px,82vw);height:3.5px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden;}
-  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#9b8cff,#7ad7ff);box-shadow:0 0 12px rgba(140,180,255,.7);}
+  .bar{width:min(540px,82vw);height:3.5px;border-radius:4px;background:rgba(160,120,130,.22);overflow:hidden;}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#e89ab0,#e0b070);box-shadow:0 0 10px rgba(230,160,140,.6);}
   .ctrls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:center;}
-  .btn{border:1px solid var(--line);background:var(--glass);color:var(--ink);backdrop-filter:blur(8px);border-radius:999px;
+  .btn{border:1px solid var(--line);background:var(--glass);color:#6a5a62;backdrop-filter:blur(8px);border-radius:999px;
     padding:7px 14px;font-size:13px;cursor:pointer;transition:.18s;}
-  .btn:hover{background:rgba(255,255,255,.14);}
+  .btn:hover{background:#fff;}
   #hint{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:8;font-size:12.5px;color:var(--muted);
-    background:rgba(10,10,20,.5);border:1px solid var(--line);border-radius:999px;padding:6px 15px;backdrop-filter:blur(8px);
+    background:rgba(255,250,250,.6);border:1px solid var(--line);border-radius:999px;padding:6px 15px;backdrop-filter:blur(8px);
     transition:opacity .8s;pointer-events:none;}
   #hint.gone{opacity:0;}
-  .toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:rgba(18,16,30,.85);border:1px solid var(--line);
-    padding:9px 18px;border-radius:999px;z-index:30;font-size:13.5px;backdrop-filter:blur(8px);transition:.5s;}
-  #err{position:fixed;left:12px;bottom:12px;z-index:40;color:#ff9ab0;font:12px monospace;max-width:80vw;white-space:pre-wrap;}
+  .toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:rgba(255,250,250,.9);border:1px solid var(--line);
+    padding:9px 18px;border-radius:999px;z-index:30;font-size:13.5px;color:#6a5a62;backdrop-filter:blur(8px);transition:.5s;box-shadow:0 8px 24px rgba(180,120,140,.15);}
+  #credit{position:fixed;right:10px;bottom:8px;z-index:6;font-size:10px;color:var(--muted);opacity:.6;}
+  #err{position:fixed;left:10px;bottom:10px;z-index:40;color:#c0506a;font:12px monospace;max-width:80vw;white-space:pre-wrap;}
 </style>
 </head>
 <body>
@@ -55,8 +57,8 @@
 
 <div class="overlay" id="intro">
   <div class="kicker">音 乐 花 园</div>
-  <h1>一首歌，长成一座能走进去的岛</h1>
-  <p class="sub">丢一首歌进来。它会一边放，一边在这座岛上长出只属于它的活物——花、树、晶体、光灵，看歌的情绪而定。你能俯瞰它、绕着看、伸手去拨。听过的歌，都留在这座越来越大的岛上。</p>
+  <h1>一首歌，开成一朵花</h1>
+  <p class="sub">丢一首歌进来。它会一边放，一边在这片暖花园里开出只属于它的一朵花——什么情绪、什么走向，就什么花、什么颜色、怎么开。挥手能拨它、晃出花瓣，它跟着歌一下下亮。听过的歌，都留在这片花园里。</p>
   <label class="drop" id="drop">
     <div class="big">把歌拖进来，或点这里选一首</div>
     <div class="small">mp3 / wav / m4a / flac · 全在你本机播放，不上传</div>
@@ -64,9 +66,10 @@
   </label>
   <div class="or">— 或者，先试试这些 —</div>
   <div class="seeds" id="seeds"></div>
+  <div id="loading">正在备花……</div>
 </div>
 
-<div id="hint">拖动旋转俯瞰 · 滚轮/双指缩放 · 挥过岛面拨花草 · 点一株回到那首歌</div>
+<div id="hint">挥动鼠标/手指拨花 · 按住空地拖动可在花园里走 · 点一朵花回到那首歌</div>
 
 <div id="hud" class="hidden">
   <div class="npline"><span class="npname" id="npName">—</span><span class="npmood" id="npMood"></span></div>
@@ -74,18 +77,27 @@
   <div class="ctrls">
     <button class="btn" id="pauseBtn">暂停</button>
     <button class="btn" id="newBtn">换一首</button>
-    <button class="btn" id="overviewBtn">看全岛</button>
+    <button class="btn" id="overviewBtn">看整园</button>
   </div>
 </div>
+<div id="credit">花模型 © Poly Pizza 作者 (CC-BY)</div>
 <div id="err"></div>
 
-<script src="vendor/three.min.js"></script>
-<script>
-"use strict";
-window.onerror=(m,s,l)=>{document.getElementById('err').textContent='err: '+m+' @'+l;};
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+const errEl=document.getElementById('err');
+window.onerror=(m,s,l)=>{errEl.textContent='err: '+m+' @'+l;};
+
+/* ---------- utils ---------- */
 const TAU=Math.PI*2, clamp=(x,a=0,b=1)=>x<a?a:x>b?b:x, lerp=(a,b,t)=>a+(b-a)*t, mix=lerp, easeOut=t=>1-Math.pow(1-t,3);
+const easeOutBack=t=>{const c=1.7;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
 function mulberry32(s){let a=s>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function snoise(x){return Math.sin(x)*0.55+Math.sin(x*2.17+1.3)*0.3+Math.sin(x*4.7+4.1)*0.15;}
 
 /* =========================================================================
    AUDIO  (one-pass fingerprint + live FFT)
@@ -129,31 +141,18 @@ function fingerprint(buf,name){
 }
 
 /* =========================================================================
-   MOOD  (deterministic palette/weather + form bias from fingerprint)
-   colors are hex ints for THREE.Color
+   MOOD -> flower choice / color / bloom (deterministic from fingerprint)
    ========================================================================= */
+// petal-tint hue per mood region (THREE hsl), + which flowers fit
+const FLOWER_FILES=['daisy','bellflower','pastelplume','sunflower','marigold'];
 const MOODS={
-  dawn:{label:'平静·明亮',skyT:0xf7c9d8,skyB:0x6a5aa0,sun:0xffe6c0,sunDir:[-0.6,0.5,-0.3],
-    fog:0xd9b8d0,fogD:0.012,dir:0xffd9b0,dirI:1.7,amb:0x6a6a90,ambI:0.55,hemiSky:0xffd9e6,hemiGround:0x3a5a3a,
-    ground:0x6f8f55,accent:0xff90b8,particle:'pollen',pCol:0xffe09a,night:false,forms:{flora:3,lantern:2,terrain:1,crystal:0,spirit:0}},
-  sunlit:{label:'热烈·明亮',skyT:0x8fd0ff,skyB:0x3aa0b0,sun:0xfff2c0,sunDir:[0.6,0.6,-0.2],
-    fog:0xbfe8e0,fogD:0.009,dir:0xfff0c8,dirI:2.0,amb:0x88a0a0,ambI:0.55,hemiSky:0xbfeaff,hemiGround:0x4a6a32,
-    ground:0x7aa048,accent:0xffd24a,particle:'firefly',pCol:0xfff0a0,night:false,forms:{flora:4,lantern:1,terrain:1,crystal:0,spirit:0}},
-  ember:{label:'激烈·暗',skyT:0x4a1830,skyB:0x14060f,sun:0xff7a3a,sunDir:[0.3,0.35,-0.2],
-    fog:0x2a0e18,fogD:0.02,dir:0xff8a40,dirI:1.6,amb:0x40202a,ambI:0.4,hemiSky:0x5a2030,hemiGround:0x200810,
-    ground:0x4a2a2a,accent:0xff7a30,particle:'ember',pCol:0xff8a40,night:true,forms:{crystal:4,flora:1,terrain:1,lantern:1,spirit:0}},
-  rain:{label:'平静·暗',skyT:0x3a5a86,skyB:0x101a2e,sun:0x9ec4e6,sunDir:[0.5,0.55,-0.3],
-    fog:0x2a3a52,fogD:0.02,dir:0xbcd6f0,dirI:1.1,amb:0x40506a,ambI:0.55,hemiSky:0x5a7090,hemiGround:0x223040,
-    ground:0x46586a,accent:0x9ad0ff,particle:'rain',pCol:0xbfe0ff,night:true,forms:{spirit:3,lantern:2,terrain:1,flora:1,crystal:0}},
-  gloom:{label:'低沉·雾',skyT:0x6a6480,skyB:0x222030,sun:0xb0a8c8,sunDir:[-0.4,0.45,-0.3],
-    fog:0x4a4660,fogD:0.03,dir:0xc4bce0,dirI:1.0,amb:0x50506a,ambI:0.6,hemiSky:0x807a98,hemiGround:0x303040,
-    ground:0x55556a,accent:0xc69aff,particle:'spore',pCol:0xd8c0ff,night:false,forms:{spirit:3,terrain:2,lantern:1,crystal:1,flora:0}},
-  twilight:{label:'流动·暮',skyT:0x7a4ab0,skyB:0x241640,sun:0xffd070,sunDir:[0.7,0.4,-0.2],
-    fog:0x46306a,fogD:0.015,dir:0xffc070,dirI:1.5,amb:0x50406a,ambI:0.5,hemiSky:0x8a5ac0,hemiGround:0x342050,
-    ground:0x5a4a72,accent:0xff9ad0,particle:'firefly',pCol:0xffd070,night:true,forms:{lantern:3,crystal:2,flora:1,spirit:1,terrain:0}},
-  nightbloom:{label:'静·夜光',skyT:0x2a2a60,skyB:0x0a0a1e,sun:0xdfe6ff,sunDir:[-0.5,0.5,-0.3],
-    fog:0x161636,fogD:0.018,dir:0xc0caff,dirI:1.0,amb:0x303058,ambI:0.5,hemiSky:0x4a4a90,hemiGround:0x18182e,
-    ground:0x3a3a5a,accent:0x7af0ff,particle:'firefly',pCol:0x9af0ff,night:true,forms:{lantern:3,spirit:2,crystal:1,flora:1,terrain:0}}
+  dawn:{label:'平静 · 明亮',petal:0xffb3c9,sky:[0xfde4ea,0xf3d6c4],fog:0xf6ddd8,flowers:['daisy','marigold','pastelplume']},
+  sunlit:{label:'热烈 · 明亮',petal:0xffd14a,sky:[0xfff0cf,0xffe0bf],fog:0xfdebcf,flowers:['sunflower','marigold','daisy']},
+  ember:{label:'激烈 · 暖',petal:0xff7a52,sky:[0xffcdb0,0xf0a890],fog:0xf2c3b0,flowers:['sunflower','marigold']},
+  rain:{label:'平静 · 凉',petal:0x9ec6ff,sky:[0xd6e2f2,0xc2cfe2],fog:0xd2dceb,flowers:['bellflower','pastelplume','daisy']},
+  gloom:{label:'低沉 · 柔',petal:0xc6a8ff,sky:[0xe2dcee,0xd2c8e2],fog:0xdfd8ec,flowers:['pastelplume','bellflower']},
+  twilight:{label:'流动 · 暮',petal:0xff9ad0,sky:[0xf0cfe6,0xd9b8e6],fog:0xe6cce0,flowers:['bellflower','pastelplume','marigold']},
+  nightbloom:{label:'静 · 夜光',petal:0x9af0e0,sky:[0xcfe0e6,0xbcd0dc],fog:0xd2e0e2,flowers:['bellflower','pastelplume']}
 };
 const MKEYS=Object.keys(MOODS);
 const IDEAL={dawn:[0.74,0.30,0.18],sunlit:[0.88,0.88,0.35],ember:[0.24,0.78,0.50],rain:[0.33,0.34,0.46],gloom:[0.42,0.46,0.20],twilight:[0.82,0.46,0.38],nightbloom:[0.58,0.10,0.42]};
@@ -163,377 +162,245 @@ function genSpec(fp,name){
   let mood='dawn',best=1e9;
   for(const k of MKEYS){const I=IDEAL[k];const dv=v-I[0],da=a-I[1],dd=dyn-I[2];const s=dv*dv+da*da+dd*dd*0.7+(rng()-0.5)*0.11;if(s<best){best=s;mood=k;}}
   const M=MOODS[mood];
-  // weighted form pick (seeded) -> surprise within mood
-  const fw=M.forms;let tot=0;for(const k in fw)tot+=fw[k];let r=rng()*tot,form='flora';for(const k in fw){r-=fw[k];if(r<=0){form=k;break;}}
-  if(form==='terrain')form=rng()<0.5?'flora':'lantern';   // 'terrain' has no geometry yet — use a real, visible form
-  const params={
-    height:lerp(0.8,1.0,a)*lerp(0.9,1.25,rng()),
-    bushiness:0.5+a*0.5+rng()*0.3,
-    count:2+Math.round(a*2+rng()*2),
-    hueJit:(rng()-0.5),
-    big:rng()<0.5
-  };
-  return {fp,name,v,a,dyn,mood,M,form,params,seed:fp.seed};
+  const flower=M.flowers[(rng()*M.flowers.length)|0];
+  // petal tint: mood hue with seed jitter
+  const tc=new THREE.Color(M.petal);const hsl={};tc.getHSL(hsl);
+  tc.setHSL((hsl.h+(rng()-0.5)*0.06+1)%1, clamp(hsl.s*(0.85+0.3*a)), clamp(hsl.l*(0.92+0.16*v)));
+  return {fp,name,v,a,dyn,mood,M,flower,
+    tint:tc.getHex(), tintAmt:0.45+0.35*rng(),
+    scale:0.85+a*0.5+rng()*0.3,
+    count:1+(rng()<0.4+0.4*a?1:0)+(rng()<0.25*a?1:0),  // 1-3 blooms in a small cluster
+    sway:0.7+dyn*0.8, seed:fp.seed};
 }
 
 /* =========================================================================
-   THREE setup
+   THREE — soft warm garden
    ========================================================================= */
-let renderer,scene,camera,sky,skyCanvas,skyTex,island,islandTop,keyLight,hemi,ambient,sunSprite,cursorLight,cursorGlow,rippleSprite;
+const canvas=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
+const scene=new THREE.Scene();
 let W=innerWidth,H=innerHeight;
-const ISLAND_TOP_Y=0;            // top surface plane height
-let islandR=10;
-const Cam={r:34,az:0.9,po:0.86,tr:34,taz:0.9,tpo:0.86,target:new THREE.Vector3(0,2,0),ttarget:new THREE.Vector3(0,2,0)};
-let glowTex,ringTex;
+const camera=new THREE.PerspectiveCamera(44,W/H,0.1,400);
 
-function makeGlowTex(){
-  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
-  const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,0.95)');gr.addColorStop(0.16,'rgba(255,255,255,0.5)');gr.addColorStop(0.42,'rgba(255,255,255,0.12)');gr.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle=gr;g.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(c);return t;
-}
-function makeRingTex(){
-  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
-  g.strokeStyle='rgba(255,255,255,1)';g.lineWidth=7;g.beginPath();g.arc(64,64,52,0,TAU);g.stroke();
-  const t=new THREE.CanvasTexture(c);return t;
-}
-function initGL(){
-  const canvas=document.getElementById('gl');
-  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
-  renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
-  renderer.setSize(W,H);
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.82;
-  scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(46,W/H,0.1,2000);
-  glowTex=makeGlowTex();ringTex=makeRingTex();
-
-  // sky dome — color-managed gradient texture (tone-mapping off so colors read as authored)
-  skyCanvas=document.createElement('canvas');skyCanvas.width=8;skyCanvas.height=256;
-  skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.encoding=THREE.sRGBEncoding;skyTex.minFilter=THREE.LinearFilter;skyTex.generateMipmaps=false;
-  sky=new THREE.Mesh(new THREE.SphereGeometry(600,32,16),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false,depthWrite:false,toneMapped:false}));
-  scene.add(sky);
-  sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,transparent:true,opacity:0.42}));
-  sunSprite.scale.setScalar(16);scene.add(sunSprite);
-
-  // lights
-  hemi=new THREE.HemisphereLight(0x88aacc,0x335533,0.6);scene.add(hemi);
-  ambient=new THREE.AmbientLight(0x404060,0.5);scene.add(ambient);
-  keyLight=new THREE.DirectionalLight(0xffffff,1.6);keyLight.castShadow=true;
-  keyLight.shadow.mapSize.set(2048,2048);keyLight.shadow.camera.near=1;keyLight.shadow.camera.far=120;
-  keyLight.shadow.camera.left=-30;keyLight.shadow.camera.right=30;keyLight.shadow.camera.top=30;keyLight.shadow.camera.bottom=-30;
-  keyLight.shadow.bias=-0.0006;keyLight.shadow.radius=4;scene.add(keyLight);scene.add(keyLight.target);
-
-  // floating island
-  island=new THREE.Group();scene.add(island);
-  // FLAT disc island (no dome) — a clear flat plane so the live thing sits visibly on top
-  const topGeo=new THREE.CylinderGeometry(islandR,islandR,0.9,72,1);
-  islandTop=new THREE.Mesh(topGeo,new THREE.MeshStandardMaterial({color:0x6f8f55,roughness:0.96,metalness:0.0}));
-  islandTop.position.y=ISLAND_TOP_Y-0.45;islandTop.receiveShadow=true;island.add(islandTop);
-  // thin tapered base for a little floating-island depth (not a ball)
-  const rock=new THREE.Mesh(new THREE.CylinderGeometry(islandR*0.98,islandR*0.62,2.4,48,1),new THREE.MeshStandardMaterial({color:0x4a3f4a,roughness:1,metalness:0}));
-  rock.position.y=ISLAND_TOP_Y-2.1;rock.castShadow=false;island.add(rock);
-
-  // cursor light + glow decal + ripple
-  cursorLight=new THREE.PointLight(0xfff0d0,0,18,2);scene.add(cursorLight);
-  cursorGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0}));
-  cursorGlow.scale.setScalar(7);cursorGlow.rotation.z=0;scene.add(cursorGlow);
-  rippleSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:ringTex,color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0}));
-  rippleSprite.scale.setScalar(2);scene.add(rippleSprite);
-
-  applyMood(MOODS.nightbloom);
-  addEventListener('resize',onResize);onResize();
-}
-function onResize(){W=innerWidth;H=innerHeight;if(!W||!H)return;renderer.setSize(W,H);camera.aspect=W/H;camera.updateProjectionMatrix();}
-
+// gradient sky dome (warm, color-managed)
+const skyCanvas=document.createElement('canvas');skyCanvas.width=8;skyCanvas.height=256;
+const skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.encoding=THREE.sRGBEncoding;skyTex.minFilter=THREE.LinearFilter;skyTex.generateMipmaps=false;
+const sky=new THREE.Mesh(new THREE.SphereGeometry(260,32,16),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false,depthWrite:false,toneMapped:false}));
+scene.add(sky);
 function setSky(topHex,botHex){const g=skyCanvas.getContext('2d');const grd=g.createLinearGradient(0,0,0,256);
-  const c=new THREE.Color();c.setHex(topHex);grd.addColorStop(0,'#'+c.getHexString());
-  c.setHex(botHex);grd.addColorStop(1,'#'+c.getHexString());g.fillStyle=grd;g.fillRect(0,0,8,256);skyTex.needsUpdate=true;}
+  const c=new THREE.Color();c.setHex(topHex);grd.addColorStop(0,'#'+c.getHexString());c.setHex(botHex);grd.addColorStop(1,'#'+c.getHexString());
+  g.fillStyle=grd;g.fillRect(0,0,8,256);skyTex.needsUpdate=true;}
+
+// soft warm lights
+const hemi=new THREE.HemisphereLight(0xfff2e6,0xe9cbb6,0.95);scene.add(hemi);
+const ambient=new THREE.AmbientLight(0xfff0e6,0.32);scene.add(ambient);
+const key=new THREE.DirectionalLight(0xffe9cc,1.55);key.position.set(7,12,8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=1;key.shadow.camera.far=80;
+key.shadow.camera.left=-26;key.shadow.camera.right=26;key.shadow.camera.top=26;key.shadow.camera.bottom=-26;key.shadow.bias=-0.0005;key.shadow.radius=7;scene.add(key);scene.add(key.target);
+const fill=new THREE.DirectionalLight(0xffd6e6,0.45);fill.position.set(-8,5,4);scene.add(fill);
+
+// ground — soft round meadow
+const ground=new THREE.Mesh(new THREE.CircleGeometry(60,72),new THREE.MeshStandardMaterial({color:0xdfc9b8,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.position.y=0;ground.receiveShadow=true;scene.add(ground);
+const groundRing=new THREE.Mesh(new THREE.RingGeometry(58,60,72),new THREE.MeshBasicMaterial({color:0xcdb4a2,transparent:true,opacity:0.5,fog:true}));
+groundRing.rotation.x=-Math.PI/2;groundRing.position.y=0.01;scene.add(groundRing);
+
+let curMood=MOODS.dawn;
 function applyMood(M){
-  setSky(M.skyT,M.skyB);
-  scene.fog=new THREE.FogExp2(M.fog,M.fogD);
-  keyLight.color.setHex(M.dir);keyLight.intensity=M.dirI*1.05;
-  const d=M.sunDir;keyLight.position.set(d[0]*45,d[1]*26+10,d[2]*45);keyLight.target.position.set(0,0,0);
-  sunSprite.position.set(d[0]*300,d[1]*300+60,d[2]*300);sunSprite.material.color.setHex(M.sun);
-  hemi.color.setHex(M.hemiSky);hemi.groundColor.setHex(M.hemiGround);hemi.intensity=M.night?0.18:0.3;
-  ambient.color.setHex(M.amb);ambient.intensity=M.ambI*0.42;
-  islandTop.material.color.setHex(M.ground);islandTop.material.color.multiplyScalar(0.82);
-  cursorLight.color.setHex(M.accent);
-  cursorGlow.material.color.setHex(M.pCol);rippleSprite.material.color.setHex(M.accent);
+  setSky(M.sky[0],M.sky[1]);
+  scene.fog=new THREE.Fog(M.fog,30,150);
+  scene.background=new THREE.Color(M.fog);
+  ground.material.color.setHex(M.fog).multiplyScalar(0.86);
   curMood=M;
 }
-let curMood=MOODS.nightbloom;
+applyMood(MOODS.dawn);
+
+/* glow + petal textures */
+function softTex(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(0.3,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c);}
+function petalTex(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+  g.translate(32,32);const gr=g.createRadialGradient(0,-6,2,0,0,30);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(1,'rgba(255,255,255,.2)');
+  g.fillStyle=gr;g.beginPath();g.ellipse(0,0,13,24,0,0,TAU);g.fill();return new THREE.CanvasTexture(c);}
+const GLOW=softTex(), PETAL=petalTex();
 
 /* =========================================================================
-   THINGS  (what a song grows into) — each: group + update + scatter + tips
+   FLOWER TEMPLATES (load all GLBs up front)
    ========================================================================= */
-function glowSprite(colorHex,scale){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:colorHex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));s.scale.setScalar(scale);return s;}
+const FLOWERS={};
+const loader=new GLTFLoader();
+function loadFlower(name){return new Promise((res)=>{
+  loader.load('assets/flowers/'+name+'.glb',(g)=>{
+    const o=g.scene;o.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;if(m.material){m.material.flatShading=false;m.material.needsUpdate=true;}}});
+    FLOWERS[name]=o;res();
+  },undefined,(e)=>{errEl.textContent+='\nflower load fail '+name;res();});
+});}
+let flowersReady=false;
+Promise.all(FLOWER_FILES.map(loadFlower)).then(()=>{flowersReady=true;document.getElementById('loading').textContent='花备好了 · 选一首吧';
+  setTimeout(()=>{const l=document.getElementById('loading');if(l)l.style.opacity=0;},1400);});
 
-function makeThing(spec){
-  const M=spec.M,P=spec.params,rng=mulberry32((spec.seed^0x1234)>>>0);
+/* make a flower instance from a spec */
+const _b3=new THREE.Box3(), _v3=new THREE.Vector3(), _v3b=new THREE.Vector3();
+function makeFlower(spec){
   const group=new THREE.Group();
-  const bend=new THREE.Group();group.add(bend);          // sway pivot at base
-  const accent=new THREE.Color(M.accent), accent2=new THREE.Color(M.accent).offsetHSL(P.hueJit*0.12,0,0.06);
-  const thing={group,bend,form:spec.form,spec,blossoms:[],meshes:[],swx:0,swz:0,vx:0,vz:0,lit:0,grown:0,
-    glowMats:[],beatMats:[]};
+  const pivot=new THREE.Group();group.add(pivot);   // sway pivot at base
+  const tintCol=new THREE.Color(spec.tint);
+  const blooms=[];
+  const rng=mulberry32((spec.seed^0x9e3779b9)>>>0);
+  const n=spec.count;
+  for(let i=0;i<n;i++){
+    const tmpl=FLOWERS[spec.flower]; if(!tmpl)continue;
+    const model=tmpl.clone(true);
+    model.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;
+      m.material=m.material.clone();m.material.flatShading=false;
+      const c=m.material.color; if(c){const greenish=(c.g>c.r&&c.g>=c.b&&(c.r+c.g+c.b)<1.5);
+        if(!greenish)c.lerp(tintCol,spec.tintAmt);}
+      if(m.material.emissive)m.material.emissiveIntensity=0;
+      m.material.needsUpdate=true;}});
+    _b3.setFromObject(model);const size=_b3.getSize(_v3).clone();const ctr=_b3.getCenter(_v3b).clone();
+    const s=(3.0/Math.max(0.01,size.y))*spec.scale*(i===0?1:0.7+rng()*0.25);
+    model.scale.setScalar(s);
+    const ox=i===0?0:(rng()-0.5)*1.8, oz=i===0?0:(rng()-0.5)*1.8;
+    model.position.set(ox-ctr.x*s, -_b3.min.y*s, oz-ctr.z*s);
+    model.rotation.y=rng()*TAU;
+    pivot.add(model);
+    blooms.push({model, topY:(size.y*s)*0.92, ox, oz, sway:0.8+rng()*0.5});
+  }
+  // soft glow at the bloom top (the "亮一下")
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:tintCol.clone().lerp(new THREE.Color(0xffffff),0.4),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0}));
+  const topY=blooms.length?Math.max(...blooms.map(b=>b.topY)):3;
+  glow.scale.setScalar(topY*1.3);glow.position.y=topY*0.8;pivot.add(glow);
 
-  function blossom(x,y,z,col,sc){const s=glowSprite(col,sc);s.position.set(x,y,z);bend.add(s);thing.blossoms.push({sprite:s,present:true,pop:1,base:sc,home:new THREE.Vector3(x,y,z)});return s;}
-  function branch(x0,y0,z0,x1,y1,z1,r0,r1,colorHex){
-    const dir=new THREE.Vector3(x1-x0,y1-y0,z1-z0);const len=dir.length();
-    const geo=new THREE.CylinderGeometry(r1,r0,len,6,1);
-    const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:colorHex,roughness:0.85,metalness:0.05}));
-    mesh.castShadow=true;mesh.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.clone().normalize());bend.add(mesh);thing.meshes.push(mesh);return mesh;
-  }
-
-  const h=P.height*spec.M; // placeholder; real height below
-  if(spec.form==='flora'){
-    const H0=4.6*P.height, stemCol=0x6b4a2f;
-    const leafA=new THREE.Color(M.ground).offsetHSL(0.02,0.25,0.07);
-    const leafB=leafA.clone().offsetHSL(0.015,0,-0.08);
-    const leafGeo=new THREE.IcosahedronGeometry(1,0);
-    function leafBall(x,y,z,sc,col){const m=new THREE.Mesh(leafGeo,new THREE.MeshStandardMaterial({color:col,roughness:0.9,flatShading:true}));m.position.set(x,y,z);m.scale.setScalar(sc);m.castShadow=true;m.receiveShadow=true;bend.add(m);thing.meshes.push(m);}
-    function grow(x,y,z,dir,len,depth,r){
-      if(depth>4||len<0.35)return;
-      const nx=x+dir.x*len,ny=y+dir.y*len,nz=z+dir.z*len;
-      branch(x,y,z,nx,ny,nz,r,r*0.62,stemCol);
-      if(depth>=3){                                  // outer tips -> clustered low-poly leaf canopy + flowers
-        leafBall(nx+(rng()-0.5)*0.7,ny+0.2,nz+(rng()-0.5)*0.7,(0.85+rng()*0.7)*(P.big?1.2:1),(rng()<0.5?leafA:leafB).getHex());
-        if(rng()<0.6){const col=(rng()<0.5?accent:accent2).getHex();blossom(nx+(rng()-0.5)*0.4,ny+0.5,nz+(rng()-0.5)*0.4,col,1.4+rng()*0.9*(P.big?1.3:1));}
-      }
-      const kids=depth<1?2:(rng()<0.5?2:3);
-      for(let k=0;k<kids;k++){const sp=0.55+rng()*0.55;const ax=(rng()-0.5)*sp,az=(rng()-0.5)*sp;
-        const nd=new THREE.Vector3(dir.x+ax,Math.max(0.3,dir.y-0.1),dir.z+az).normalize();
-        grow(nx,ny,nz,nd,len*(0.74+rng()*0.1),depth+1,r*0.6);}
-    }
-    grow(0,0,0,new THREE.Vector3(0,1,0),H0*0.3,0,0.24*(P.big?1.25:1));
-  }
-  else if(spec.form==='crystal'){
-    const n=4+P.count;const baseCol=new THREE.Color(M.accent);
-    for(let i=0;i<n;i++){const ang=rng()*TAU,rad=rng()*2.4;const hgt=(2.5+rng()*4)*P.height;
-      const geo=new THREE.ConeGeometry(0.4+rng()*0.5,hgt,5,1);
-      const mat=new THREE.MeshStandardMaterial({color:baseCol.clone().offsetHSL((rng()-0.5)*0.1,0,(rng()-0.5)*0.1),emissive:baseCol,emissiveIntensity:1.4,roughness:0.3,metalness:0.2,transparent:true,opacity:0.92});
-      const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.position.set(Math.cos(ang)*rad,hgt/2,Math.sin(ang)*rad);
-      m.rotation.z=(rng()-0.5)*0.4;m.rotation.x=(rng()-0.5)*0.4;bend.add(m);thing.meshes.push(m);thing.beatMats.push(mat);
-      const tip=glowSprite(M.accent,1.6+rng());tip.position.set(m.position.x,hgt*0.96,m.position.z);bend.add(tip);thing.blossoms.push({sprite:tip,present:true,pop:1,base:tip.scale.x,home:tip.position.clone()});}
-  }
-  else if(spec.form==='lantern'){
-    const stemCol=new THREE.Color(M.ground).getHex();
-    branch(0,0,0,0,2.4*P.height,0,0.25,0.18,stemCol);
-    const cx=0,cy=2.7*P.height;
-    // solid glowing lantern body (emissive sphere) so it reads as an object, not a blown blob
-    const body=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshStandardMaterial({color:M.accent,emissive:M.accent,emissiveIntensity:1.3,roughness:0.4,flatShading:true}));
-    body.scale.setScalar(1.0*(P.big?1.3:1));body.position.set(cx,cy,0);body.castShadow=true;bend.add(body);thing.meshes.push(body);thing.beatMats.push(body.material);
-    const core=glowSprite(M.accent,1.7*(P.big?1.3:1));core.position.set(cx,cy,0);bend.add(core);
-    thing.blossoms.push({sprite:core,present:true,pop:1,base:core.scale.x,home:core.position.clone(),core:true});
-    const orbN=4+P.count;thing.orbit=[];
-    for(let i=0;i<orbN;i++){const o=glowSprite(i%2?M.pCol:M.accent,1.3+Math.random()*0.8);bend.add(o);
-      const orb={sprite:o,r:1.4+Math.random()*1.8,a:Math.random()*TAU,sp:0.4+Math.random()*0.7,yb:cy+(Math.random()-0.5)*1.4,tilt:Math.random()*0.8};thing.orbit.push(orb);
-      thing.blossoms.push({sprite:o,present:true,pop:1,base:o.scale.x,home:new THREE.Vector3(0,cy,0),orb});}
-  }
-  else { // spirit: mound + swirling motes + light beam
-    const mound=new THREE.Mesh(new THREE.SphereGeometry(1.5*P.height,16,12,0,TAU,0,Math.PI/2),new THREE.MeshStandardMaterial({color:new THREE.Color(M.ground).offsetHSL(0,0,-0.08).getHex(),roughness:1}));
-    mound.scale.y=0.5;mound.castShadow=true;mound.receiveShadow=true;bend.add(mound);thing.meshes.push(mound);
-    const beam=glowSprite(M.accent,0);beam.scale.set(2.2,9*P.height,1);beam.position.set(0,4*P.height,0);bend.add(beam);thing._beam=beam;
-    const n=10+P.count*4;thing.swarm=[];
-    for(let i=0;i<n;i++){const o=glowSprite(i%2?M.pCol:M.accent,0.6+Math.random()*0.7);bend.add(o);
-      const s={sprite:o,r:1+Math.random()*2.6,a:Math.random()*TAU,sp:0.5+Math.random()*1.0,yb:1+Math.random()*4*P.height,tilt:Math.random()*0.6,ph:Math.random()*TAU};thing.swarm.push(s);
-      thing.blossoms.push({sprite:o,present:true,pop:1,base:o.scale.x,home:new THREE.Vector3(0,s.yb,0),swarm:s});}
-  }
-
-  // unify emissive tracking for beat pulse on blossom sprites
+  const fl={group,pivot,blooms,glow,spec,tintCol, swx:0,swz:0,vx:0,vz:0,lit:0,growthT:0,live:false,srcUrl:null,topY,
+    shedCool:0};
   group.scale.setScalar(0.001);
-  thing.update=function(dt,gT,A,lvl,beat,cursor){
-    // growth: scale reveal, bounded -> stops at gT=1
-    const g=easeOut(gT);thing.grown=g;
-    const baseS=thing._baseScale||1;group.scale.setScalar(Math.max(0.001,g*baseS));
-    // blossom reveal by growth + pop + beat glow
-    const bl=thing.blossoms,nb=bl.length;
-    for(let i=0;i<nb;i++){const b=bl[i];const appear=i/Math.max(1,nb)*0.85;
-      const vis=gT>appear; if(b.present){if(b.pop<1)b.pop=Math.min(1,b.pop+dt*4);}
-      const beatBoost=1+beat*0.5+thing.lit*0.5+lvl*0.2;
-      const sc=(b.present&&vis?b.base*b.pop*beatBoost:0.0001);
-      b.sprite.scale.setScalar(sc);
-      b.sprite.material.opacity=(b.present&&vis)?clamp(0.7+beat*0.3+thing.lit*0.25):0;
-    }
-    for(const mat of thing.beatMats){mat.emissiveIntensity=1.1+beat*1.6+thing.lit*1.2+lvl*0.5;}
-    // orbit / swarm motion
-    if(thing.orbit){for(const o of thing.orbit){o.a+=dt*o.sp*(0.6+lvl*1.5);const oo=o.sprite; if(oo.scale.x>0.001){oo.position.set(Math.cos(o.a)*o.r,o.yb+Math.sin(o.a*1.3)*o.tilt,Math.sin(o.a)*o.r);}}}
-    if(thing.swarm){for(const s of thing.swarm){s.a+=dt*s.sp*(0.5+lvl*2.0);const r=s.r*(1+0.15*Math.sin(s.ph+performance.now()*0.001));const oo=s.sprite;if(oo.scale.x>0.001)oo.position.set(Math.cos(s.a)*r,s.yb+Math.sin(s.a*1.7+s.ph)*s.tilt,Math.sin(s.a)*r);}}
-    if(thing._beam){thing._beam.material.opacity=clamp(0.10+lvl*0.5+beat*0.3);}
-    // sway physics (spring) — wind + cursor lean + beat whip, settles when quiet
-    let tx=wind.x*0.12, tz=wind.z*0.12;
+  fl.update=function(dt,gT,level,beat,cursor){
+    // bloom: scale up with overshoot, bounded
+    const g=clamp(gT);const sc=g<1?easeOutBack(clamp(g/0.92)):1;
+    group.scale.setScalar(Math.max(0.001,sc));
+    // beat pulse + glow + lit
+    const pulse=1+beat*0.05+level*0.02;
+    pivot.scale.setScalar(pulse);
+    glow.material.opacity=clamp((0.12+beat*0.5+level*0.25+fl.lit*0.4)*g);
+    glow.scale.setScalar(topY*(1.1+beat*0.5+level*0.3));
+    // sway physics: wind + cursor lean + beat, settles
+    let tx=wind.x*0.10*fl.spec.sway, tz=wind.z*0.10*fl.spec.sway;
     if(cursor.has){
       const dx=cursor.p.x-group.position.x, dz=cursor.p.z-group.position.z, d=Math.hypot(dx,dz);
-      if(d<cursor.R){const fall=(1-d/cursor.R), inv=1/(d+0.001);
-        const lean=fall*0.5; tx+= (dz*inv)*lean; tz+= -(dx*inv)*lean;       // lean toward hand
-        tx+= cursor.v.z*fall*0.05; tz+= -cursor.v.x*fall*0.05;              // gust from motion
-        thing.lit=Math.max(thing.lit,fall);
-        // scatter on fast sweep
-        if(cursor.speed>0.5){thing.scatter(cursor,d/cursor.R);}
+      if(d<cursor.R){const fall=1-d/cursor.R, inv=1/(d+0.001);
+        tx+=(dz*inv)*fall*0.45; tz+=-(dx*inv)*fall*0.45;
+        tx+=cursor.v.z*fall*0.05; tz+=-cursor.v.x*fall*0.05;
+        fl.lit=Math.max(fl.lit,fall);
+        if(cursor.speed>0.5 && fl.shedCool<=0){ shedPetals(fl, Math.min(6,2+(cursor.speed*2|0)), cursor.v); fl.shedCool=0.12; }
       }
     }
-    if(beat>0.25){thing.vx+=(Math.random()-0.5)*beat*0.06;thing.vz+=(Math.random()-0.5)*beat*0.06;}
-    thing.vx=(thing.vx+(tx-thing.swx)*0.10)*0.86; thing.swx+=thing.vx;
-    thing.vz=(thing.vz+(tz-thing.swz)*0.10)*0.86; thing.swz+=thing.vz;
-    const lim=0.6; thing.swx=clamp(thing.swx,-lim,lim);thing.swz=clamp(thing.swz,-lim,lim);
-    bend.rotation.x=thing.swx;bend.rotation.z=thing.swz;
-    thing.lit*=0.90;
+    fl.shedCool-=dt;
+    if(beat>0.3){fl.vx+=(Math.random()-0.5)*beat*0.05;fl.vz+=(Math.random()-0.5)*beat*0.05;}
+    fl.vx=(fl.vx+(tx-fl.swx)*0.12)*0.85; fl.swx=clamp(fl.swx+fl.vx,-0.5,0.5);
+    fl.vz=(fl.vz+(tz-fl.swz)*0.12)*0.85; fl.swz=clamp(fl.swz+fl.vz,-0.5,0.5);
+    pivot.rotation.x=fl.swx; pivot.rotation.z=fl.swz;
+    fl.lit*=0.9;
   };
-  const tmpV=new THREE.Vector3();
-  thing.scatter=function(cursor,nd){
-    for(const b of thing.blossoms){if(!b.present||b.core)continue;if(Math.random()<0.25*(1-nd)){b.present=false;
-      b.sprite.getWorldPosition(tmpV);
-      spawnFlyer(tmpV,b.sprite.material.color,b.base, cursor.v);}}
-  };
-  thing.beatRebloom=function(){for(const b of thing.blossoms){if(!b.present&&Math.random()<0.5){b.present=true;b.pop=0;}}};
-  return thing;
+  return fl;
 }
 
-/* flying scattered blossoms (world space) */
-const flyers=[];const _q=new THREE.Vector3();
-function spawnFlyer(worldPos,color,scale,vel){
-  if(flyers.length>180)return;
-  const s=glowSprite(color.getHex?color.getHex():color,scale);s.position.copy(worldPos);scene.add(s);
-  flyers.push({s,vx:(vel?vel.x:0)*0.4+(Math.random()-0.5)*0.2,vy:Math.random()*0.18+0.05,vz:(vel?vel.z:0)*0.4+(Math.random()-0.5)*0.2,life:1,base:scale});
-}
-function updateFlyers(dt){
-  for(let i=flyers.length-1;i>=0;i--){const f=flyers[i];f.vy-=0.012;f.s.position.x+=f.vx;f.s.position.y+=f.vy;f.s.position.z+=f.vz;f.vx*=0.97;f.vz*=0.97;f.life-=0.012;
-    f.s.material.opacity=clamp(f.life);f.s.scale.setScalar(f.base*clamp(f.life)*1.0);
-    if(f.life<=0||f.s.position.y<ISLAND_TOP_Y-1){scene.remove(f.s);flyers.splice(i,1);}}
-}
-
-/* ambient particles (drifting motes / rain) */
-let ambGroup,ambP=[];
-function buildAmbient(M){
-  if(ambGroup){scene.remove(ambGroup);} ambGroup=new THREE.Group();scene.add(ambGroup);ambP=[];
-  const n=M.particle==='rain'?120:34;
-  for(let i=0;i<n;i++){const s=glowSprite(M.pCol,M.particle==='rain'?0.45:0.55+Math.random()*0.7);
-    if(M.particle==='rain')s.scale.set(0.15,1.6,1);
-    ambGroup.add(s);ambP.push({s,x:(Math.random()-0.5)*40,y:Math.random()*22,z:(Math.random()-0.5)*40,vy:M.particle==='rain'?-(0.5+Math.random()*0.4):(Math.random()*0.02),ph:Math.random()*TAU,rain:M.particle==='rain'});}
-}
-function updateAmbient(dt,lvl){
-  for(const p of ambP){if(p.rain){p.y+=p.vy;if(p.y<0){p.y=22;p.x=(Math.random()-0.5)*40;p.z=(Math.random()-0.5)*40;}}
-    else{p.y+=0.01+Math.sin(performance.now()*0.001+p.ph)*0.01;p.x+=wind.x*0.01+Math.sin(p.ph+performance.now()*0.0007)*0.01;if(p.y>22)p.y=0;}
-    p.s.position.set(p.x,p.y,p.z);p.s.material.opacity=p.rain?0.28:clamp((0.16+0.26*Math.sin(performance.now()*0.003+p.ph))*(0.55+lvl*0.6));}
-}
-
-/* =========================================================================
-   FIELD / placement
-   ========================================================================= */
-const Field={things:[],live:null};
-const wind={x:0,z:0};
-function slotPos(index){
-  // golden-angle spiral; index 0 sits at the island centre (the live song = the star)
-  const r=Math.sqrt(index)*2.2;const a=index*2.399963;
-  islandR=Math.max(10,r+3.5);
-  return new THREE.Vector3(Math.cos(a)*r,ISLAND_TOP_Y,Math.sin(a)*r);
-}
-function addThing(spec,index,opts){
-  opts=opts||{};
-  const t=makeThing(spec);t._baseScale=opts.baseScale||1;
-  const p=slotPos(index);t.group.position.copy(p);
-  t.live=!!opts.live;t.growthT=opts.growthT!=null?opts.growthT:1;t.srcUrl=opts.srcUrl||null;t.index=index;
-  scene.add(t.group);Field.things.push(t);return t;
-}
-
-/* =========================================================================
-   INTERACTION
-   ========================================================================= */
-const Ptr={x:0,y:0,px:0,py:0,down:false,drag:false,onThing:null,moved:0,active:false,idle:99,
-  world:new THREE.Vector3(),vWorld:new THREE.Vector3(),pWorld:new THREE.Vector3(),speed:0,has:false};
-const raycaster=new THREE.Raycaster();const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-ISLAND_TOP_Y);
-const ndc=new THREE.Vector2();
-function updateCursorWorld(){
-  ndc.set((Ptr.x/W)*2-1,-(Ptr.y/H)*2+1);raycaster.setFromCamera(ndc,camera);
-  const hit=raycaster.ray.intersectPlane(groundPlane,_q);
-  if(hit){Ptr.pWorld.copy(Ptr.world);Ptr.world.copy(_q);Ptr.vWorld.subVectors(Ptr.world,Ptr.pWorld);Ptr.has=true;
-    Ptr.speed=Ptr.vWorld.length();}
-  else Ptr.has=false;
-}
-function thingAtPointer(){
-  ndc.set((Ptr.x/W)*2-1,-(Ptr.y/H)*2+1);raycaster.setFromCamera(ndc,camera);
-  let best=null,bd=1e9;const o=new THREE.Vector3();
-  for(const t of Field.things){t.group.getWorldPosition(o);
-    // distance from ray to thing center (approx by projecting)
-    const toC=o.clone().sub(raycaster.ray.origin);const proj=toC.dot(raycaster.ray.direction);if(proj<0)continue;
-    const closest=raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(proj));
-    const d=closest.distanceTo(o);if(d<3.2*(t._baseScale||1)&&d<bd){bd=d;best=t;}}
-  return best;
-}
-function pointerPos(e){const r=renderer.domElement.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
-function onDown(e){renderer.domElement.setPointerCapture&&renderer.domElement.setPointerCapture(e.pointerId);
-  const p=pointerPos(e);Ptr.x=p.x;Ptr.y=p.y;Ptr.px=p.x;Ptr.py=p.y;Ptr.down=true;Ptr.drag=false;Ptr.moved=0;Ptr.active=true;Ptr.idle=0;
-  updateCursorWorld();Ptr.onThing=thingAtPointer();hideHint();}
-function onMove(e){const p=pointerPos(e);const dx=p.x-Ptr.x,dy=p.y-Ptr.y;Ptr.px=Ptr.x;Ptr.py=Ptr.y;Ptr.x=p.x;Ptr.y=p.y;Ptr.active=true;Ptr.idle=0;
-  if(Ptr.down){Ptr.moved+=Math.hypot(dx,dy);
-    if(!Ptr.drag&&Ptr.moved>8)Ptr.drag=!Ptr.onThing;          // empty drag => orbit; on-thing drag => bend
-    if(Ptr.drag){Cam.taz-=dx*0.005;Cam.tpo=clamp(Cam.tpo-dy*0.005,0.42,1.18);}
+/* petal particles (shed) */
+const petals=[];const _wp=new THREE.Vector3();
+function shedPetals(fl,k,vel){
+  for(let i=0;i<k;i++){
+    if(petals.length>240)break;
+    const b=fl.blooms[(Math.random()*fl.blooms.length)|0]; if(!b)break;
+    b.model.getWorldPosition(_wp);
+    const pc=fl.tintCol.clone();const hsl={};pc.getHSL(hsl);pc.setHSL(hsl.h,clamp(hsl.s*1.7,0.25,0.85),clamp(hsl.l*0.9,0.4,0.66));
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:PETAL,color:pc,transparent:true,depthWrite:false,opacity:0.95,rotation:Math.random()*TAU}));
+    s.scale.setScalar(0.5+Math.random()*0.4);
+    s.position.set(_wp.x+(Math.random()-0.5),_wp.y+b.topY*0.4+Math.random()*0.6,_wp.z+(Math.random()-0.5));
+    scene.add(s);
+    petals.push({s,vx:(vel?vel.x:0)*0.35+(Math.random()-0.5)*0.5,vy:0.5+Math.random()*0.5,vz:(vel?vel.z:0)*0.35+(Math.random()-0.5)*0.5,
+      vr:(Math.random()-0.5)*0.2,life:1,spin:Math.random()*TAU});
   }
-  updateCursorWorld();hideHint();}
-function onUp(e){if(Ptr.down&&!Ptr.drag&&Ptr.moved<8){const t=Ptr.onThing||thingAtPointer();if(t)selectThing(t);}
-  Ptr.down=false;Ptr.drag=false;Ptr.onThing=null;}
-function onWheel(e){e.preventDefault();Cam.tr=clamp(Cam.tr*(1+e.deltaY*0.0012),10,70);}
-// pinch zoom
-let pinch0=0;
-function onTouchMove(e){if(e.touches&&e.touches.length===2){e.preventDefault();const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;const d=Math.hypot(dx,dy);if(pinch0)Cam.tr=clamp(Cam.tr*(pinch0/d),10,70);pinch0=d;}}
-function onTouchEnd(){pinch0=0;}
-
-function selectThing(t){
-  // fly camera to the thing + replay its song if we have it
-  Cam.ttarget.set(t.group.position.x,t.group.position.y+2.4,t.group.position.z);Cam.tr=clamp(16,10,70);
-  if(t.srcUrl)playSample(t.srcUrl,t.spec.name);
-  else toast('《'+t.spec.name+'》— 把这首再拖进来就能再听一次');
+}
+function updatePetals(dt){
+  for(let i=petals.length-1;i>=0;i--){const p=petals[i];p.vy-=2.6*dt;p.s.position.x+=p.vx*dt*8;p.s.position.y+=p.vy*dt*8;p.s.position.z+=p.vz*dt*8;
+    p.vx*=0.96;p.vz*=0.96;p.spin+=p.vr;p.s.material.rotation=p.spin;p.life-=0.012;p.s.material.opacity=clamp(p.life)*0.95;
+    if(p.life<=0||p.s.position.y<0.02){scene.remove(p.s);petals.splice(i,1);}}
 }
 
+/* drifting pollen motes for atmosphere */
+const motes=new THREE.Group();scene.add(motes);
+{ const mat=new THREE.SpriteMaterial({map:GLOW,color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0.0});
+  for(let i=0;i<60;i++){const s=new THREE.Sprite(mat.clone());s.scale.setScalar(0.3+Math.random()*0.5);
+    s.position.set((Math.random()-0.5)*44,Math.random()*16,(Math.random()-0.5)*44);s.userData={ph:Math.random()*TAU};motes.add(s);} }
+function updateMotes(dt,level){const now=performance.now();motes.children.forEach(s=>{const u=s.userData;s.position.y+=0.01+0.01*Math.sin(now*0.001+u.ph);if(s.position.y>16)s.position.y=0;s.position.x+=wind.x*0.01;s.material.opacity=clamp((0.12+0.18*Math.sin(now*0.002+u.ph))*(0.5+level));});}
+
 /* =========================================================================
-   CAMERA + LOOP
+   FIELD + CAMERA + POINTER
    ========================================================================= */
-function updateCamera(dt){
-  Cam.r=mix(Cam.r,Cam.tr,0.10);Cam.az=mix(Cam.az,Cam.taz,0.12);Cam.po=mix(Cam.po,Cam.tpo,0.12);
-  Cam.target.lerp(Cam.ttarget,0.08);
+const Field={flowers:[],live:null};
+const wind={x:0,z:0};
+const Cam={r:18,az:0.7,po:0.82,tr:18,taz:0.7,tpo:0.82,target:new THREE.Vector3(0,2,0),ttarget:new THREE.Vector3(0,2,0)};
+function slotPos(index){const r=index===0?0:(3.2+Math.sqrt(index)*3.0);const a=index*2.399963;return new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r);}
+function addFlower(spec,index,opts){opts=opts||{};const fl=makeFlower(spec);const p=slotPos(index);fl.group.position.copy(p);
+  fl.live=!!opts.live;fl.growthT=opts.growthT!=null?opts.growthT:1;fl.srcUrl=opts.srcUrl||null;fl.index=index;
+  scene.add(fl.group);Field.flowers.push(fl);return fl;}
+
+const Ptr={x:0,y:0,down:false,drag:false,onFlower:null,moved:0,active:false,idle:99,
+  world:new THREE.Vector3(),vWorld:new THREE.Vector3(),pWorld:new THREE.Vector3(),speed:0,has:false};
+const raycaster=new THREE.Raycaster();const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);const ndc=new THREE.Vector2();const _hit=new THREE.Vector3();
+function updateCursorWorld(){ndc.set((Ptr.x/W)*2-1,-(Ptr.y/H)*2+1);raycaster.setFromCamera(ndc,camera);
+  const hit=raycaster.ray.intersectPlane(groundPlane,_hit);
+  if(hit){Ptr.pWorld.copy(Ptr.world);Ptr.world.copy(_hit);Ptr.vWorld.subVectors(Ptr.world,Ptr.pWorld);Ptr.has=true;Ptr.speed=Ptr.vWorld.length();}else Ptr.has=false;}
+function flowerAtPointer(){ndc.set((Ptr.x/W)*2-1,-(Ptr.y/H)*2+1);raycaster.setFromCamera(ndc,camera);
+  let best=null,bd=1e9;const o=new THREE.Vector3();
+  for(const fl of Field.flowers){fl.group.getWorldPosition(o);const toC=o.clone().sub(raycaster.ray.origin);const proj=toC.dot(raycaster.ray.direction);if(proj<0)continue;
+    const closest=raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(proj));const d=closest.distanceTo(o.setY(o.y+fl.topY*0.4));
+    if(d<2.6&&d<bd){bd=d;best=fl;}}return best;}
+function pointerPos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);const p=pointerPos(e);Ptr.x=p.x;Ptr.y=p.y;Ptr.down=true;Ptr.drag=false;Ptr.moved=0;Ptr.active=true;Ptr.idle=0;updateCursorWorld();Ptr.onFlower=flowerAtPointer();hideHint();});
+canvas.addEventListener('pointermove',e=>{const p=pointerPos(e);const dx=p.x-Ptr.x,dy=p.y-Ptr.y;Ptr.x=p.x;Ptr.y=p.y;Ptr.active=true;Ptr.idle=0;
+  if(Ptr.down){Ptr.moved+=Math.hypot(dx,dy);if(!Ptr.drag&&Ptr.moved>8)Ptr.drag=!Ptr.onFlower;if(Ptr.drag){Cam.taz-=dx*0.005;Cam.tpo=clamp(Cam.tpo-dy*0.004,0.38,1.2);}}
+  updateCursorWorld();hideHint();});
+function up(e){if(Ptr.down&&!Ptr.drag&&Ptr.moved<8){const fl=Ptr.onFlower||flowerAtPointer();if(fl)selectFlower(fl);}Ptr.down=false;Ptr.drag=false;Ptr.onFlower=null;}
+canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+canvas.addEventListener('wheel',e=>{e.preventDefault();Cam.tr=clamp(Cam.tr*(1+e.deltaY*0.0012),8,46);},{passive:false});
+let pinch0=0;canvas.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length===2){e.preventDefault();const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;const d=Math.hypot(dx,dy);if(pinch0)Cam.tr=clamp(Cam.tr*(pinch0/d),8,46);pinch0=d;}},{passive:false});
+canvas.addEventListener('touchend',()=>pinch0=0);
+function selectFlower(fl){Cam.ttarget.set(fl.group.position.x,fl.topY*0.5,fl.group.position.z);Cam.tr=clamp(11,8,46);
+  if(fl.srcUrl)playSample(fl.srcUrl,fl.spec.name);else toast('《'+fl.spec.name+'》— 把这首再拖进来就能再听一次');}
+
+function updateCamera(){Cam.r=mix(Cam.r,Cam.tr,0.1);Cam.az=mix(Cam.az,Cam.taz,0.12);Cam.po=mix(Cam.po,Cam.tpo,0.12);Cam.target.lerp(Cam.ttarget,0.09);
   const sp=Math.sin(Cam.po),cp=Math.cos(Cam.po);
   camera.position.set(Cam.target.x+Cam.r*sp*Math.cos(Cam.az),Cam.target.y+Cam.r*cp,Cam.target.z+Cam.r*sp*Math.sin(Cam.az));
-  camera.lookAt(Cam.target);
-  sky.position.copy(camera.position);
-}
+  camera.lookAt(Cam.target);sky.position.copy(camera.position);}
+
+/* =========================================================================
+   LOOP
+   ========================================================================= */
 let endedAt=0,lastT=performance.now(),mode='intro';
-const cursorState={has:false,p:new THREE.Vector3(),v:new THREE.Vector3(),R:7,speed:0};
+const cursorState={has:false,p:new THREE.Vector3(),v:new THREE.Vector3(),R:6.5,speed:0};
 function frame(now){
   requestAnimationFrame(frame);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
-  if((!W||!H)&&innerWidth&&innerHeight)onResize();
   Audio_.sample();
-  Ptr.idle+=dt;if(Ptr.idle>1.0)Ptr.active=false;
-  Ptr.vWorld.multiplyScalar(0.7);
-  // wind from music; settles to ~0 when ended & quiet
-  let breeze; if(Audio_.playing)breeze=0.5+Audio_.level*2.4+Audio_.bass*1.2; else{const since=(now-endedAt)/1000;breeze=(endedAt&&since>2.5)?0.05:0.4;}
+  Ptr.idle+=dt;if(Ptr.idle>1.0)Ptr.active=false;Ptr.vWorld.multiplyScalar(0.7);
+  let breeze;if(Audio_.playing)breeze=0.5+Audio_.level*2.2+Audio_.bass*1.1;else{const since=(now-endedAt)/1000;breeze=(endedAt&&since>2.5)?0.18:0.4;}
   wind.x=mix(wind.x,Math.sin(now*0.0004)*breeze,0.04);wind.z=mix(wind.z,Math.cos(now*0.00033)*breeze*0.7,0.04);
+  cursorState.has=Ptr.active&&Ptr.has&&!Ptr.drag;cursorState.p.copy(Ptr.world);cursorState.v.copy(Ptr.vWorld);cursorState.speed=Ptr.speed;cursorState.R=6.5;
 
-  // cursor state for things
-  cursorState.has=Ptr.active&&Ptr.has&&!Ptr.drag;
-  cursorState.p.copy(Ptr.world);cursorState.v.copy(Ptr.vWorld);cursorState.speed=Ptr.speed;cursorState.R=7;
-  if(cursorState.has){cursorLight.position.set(Ptr.world.x,ISLAND_TOP_Y+3,Ptr.world.z);cursorLight.intensity=mix(cursorLight.intensity,2.4,0.2);
-    cursorGlow.position.set(Ptr.world.x,ISLAND_TOP_Y+0.4,Ptr.world.z);cursorGlow.material.opacity=mix(cursorGlow.material.opacity,0.32,0.2);}
-  else{cursorLight.intensity=mix(cursorLight.intensity,0,0.1);cursorGlow.material.opacity=mix(cursorGlow.material.opacity,0,0.1);}
-
-  // growth (live), bounded
   const live=Field.live;
-  if(live){let g=easeOut(clamp(Audio_.progress()*1.05));if(!Audio_.playing&&Audio_.duration>0&&Audio_.curTime()>=Audio_.duration-0.3)g=1;live.growthT=Math.max(live.growthT,clamp(Audio_.progress()*1.05));}
+  if(live){let g=clamp(Audio_.progress()*1.05);if(!Audio_.playing&&Audio_.duration>0&&Audio_.curTime()>=Audio_.duration-0.3)g=1;live.growthT=Math.max(live.growthT,g);}
 
-  // beat: rebloom + ripple
-  if(Audio_.beat>0.25){if(live)live.beatRebloom();
-    const c=live?live.group.position:Cam.target;rippleSprite.position.set(c.x,ISLAND_TOP_Y+0.3,c.z);rippleSprite.material.opacity=0.5;rippleSprite.scale.setScalar(2);}
-  if(rippleSprite.material.opacity>0.01){rippleSprite.material.opacity*=0.92;rippleSprite.scale.x+=dt*30;rippleSprite.scale.y+=dt*30;}
-
-  for(const t of Field.things){t.update(dt,t.live?t.growthT:1,curMood,Audio_.level,Audio_.beatFlash,cursorState);}
-  updateFlyers(dt);updateAmbient(dt,Audio_.level);
-  updateCamera(dt);
-  // sun pulse with music
-  const sb=1+Audio_.level*0.5+Audio_.beatFlash*0.3;sunSprite.scale.setScalar(16*sb);
-
+  for(const fl of Field.flowers)fl.update(dt,fl.live?fl.growthT:1,Audio_.level,Audio_.beatFlash,cursorState);
+  updatePetals(dt);updateMotes(dt,Audio_.level);updateCamera();
   renderer.render(scene,camera);
   if(live&&mode==='play')npBar.style.width=(Audio_.progress()*100)+'%';
 }
+requestAnimationFrame(frame);
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;if(!W||!H)return;renderer.setSize(W,H);camera.aspect=W/H;camera.updateProjectionMatrix();});
 
 /* =========================================================================
    UI / FLOW
@@ -543,44 +410,33 @@ const npName=document.getElementById('npName'),npMood=document.getElementById('n
 const show=el=>el.classList.remove('hidden'),hide=el=>el.classList.add('hidden');
 let hintHidden=false;function hideHint(){if(!hintHidden){hintHidden=true;hintEl.classList.add('gone');}}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.style.opacity='0',1500);setTimeout(()=>d.remove(),2100);}
+const flowerCN={daisy:'雏菊',bellflower:'风铃花',pastelplume:'柔羽花',sunflower:'向日葵',marigold:'金盏花'};
 
-const STORE='musicgarden.v3';
+const STORE='musicgarden.v4';
 const loadG=()=>{try{return JSON.parse(localStorage.getItem(STORE))||[];}catch(e){return[];}};
-const saveG=g=>localStorage.setItem(STORE,JSON.stringify(g.slice(-36)));
-function rebuildField(){
-  for(const t of Field.things)scene.remove(t.group);Field.things.length=0;Field.live=null;
-  loadG().forEach((it,idx)=>{const spec=genSpec({energy:it.e,brightness:it.b,dynamics:it.d,seed:it.seed,duration:it.dur},it.name);
-    addThing(spec,idx,{growthT:1,baseScale:1.4,srcUrl:it.src||null});});
-}
-let keptThis=false,liveSpec=null;
-function commitLive(){
-  if(!Field.live)return;const g=loadG(),fp=Field.live.spec.fp;
-  if(!g.some(x=>x.seed===fp.seed)){g.push({seed:fp.seed,name:Field.live.spec.name,when:Date.now(),e:fp.energy,b:fp.brightness,d:fp.dynamics,dur:fp.duration,src:Field.live.srcUrl||null});saveG(g);}
-  Field.live.live=false;Field.live.growthT=1;Field.live=null;
-}
+const saveG=g=>localStorage.setItem(STORE,JSON.stringify(g.slice(-40)));
+
 async function startBuffer(ab,name,srcUrl){
+  if(!flowersReady){toast('花还在备……稍等一下');return;}
   intro.style.pointerEvents='none';
   try{
     const buf=await Audio_.load(ab);const fp=fingerprint(buf,name);const spec=genSpec(fp,name);
-    // persist current live, then rebuild: PAST songs orbit the edge, LIVE song sits at the centre (the star)
-    if(Field.live){const g0=loadG(),lf=Field.live.spec.fp;if(!g0.some(x=>x.seed===lf.seed)){g0.push({seed:lf.seed,name:Field.live.spec.name,when:Date.now(),e:lf.energy,b:lf.brightness,d:lf.dynamics,dur:lf.duration,src:Field.live.srcUrl||null});saveG(g0);}}
-    for(const th of Field.things)scene.remove(th.group);Field.things.length=0;Field.live=null;
-    let si=1;for(const it of loadG()){if(it.seed===fp.seed)continue;const psp=genSpec({energy:it.e,brightness:it.b,dynamics:it.d,seed:it.seed,duration:it.dur},it.name);addThing(psp,si++,{growthT:1,baseScale:1.4,srcUrl:it.src||null});}
-    const t=addThing(spec,0,{live:true,growthT:0,baseScale:1.7,srcUrl:srcUrl||null});  // slot 0 = island centre
-    Field.live=t;liveSpec=spec;keptThis=false;endedAt=0;
-    applyMood(spec.M);buildAmbient(spec.M);
-    // SNAP the camera straight onto the centre — no drift, correct on any screen shape
-    Cam.target.set(0,4.2,0);Cam.ttarget.set(0,4.2,0);Cam.r=Cam.tr=19;Cam.az=Cam.taz=0.7;Cam.po=Cam.tpo=0.72;
+    // persist current live, rebuild: live at centre, past around
+    if(Field.live){const g0=loadG(),lf=Field.live.spec.fp;if(!g0.some(x=>x.seed===lf.seed)){g0.push(memOf(Field.live));saveG(g0);}}
+    for(const fl of Field.flowers)scene.remove(fl.group);Field.flowers.length=0;Field.live=null;
+    let si=1;for(const it of loadG()){if(it.seed===fp.seed)continue;addFlower(specOf(it),si++,{growthT:1,srcUrl:it.src||null});}
+    const fl=addFlower(spec,0,{live:true,growthT:0,srcUrl:srcUrl||null});Field.live=fl;keptThis=false;endedAt=0;
+    applyMood(spec.M);
+    Cam.target.set(0,fl.topY*0.5,0);Cam.ttarget.set(0,fl.topY*0.5,0);Cam.r=Cam.tr=13;Cam.az=Cam.taz=0.7;Cam.po=Cam.tpo=0.78;
     Audio_.reset();Audio_.play(onEnd);mode='play';
-    npName.textContent=name;npMood.textContent='· '+spec.M.label+' · '+formCN(spec.form);
-    document.getElementById('pauseBtn').textContent='暂停';
-    hide(intro);show(hud);
-  }catch(e){console.error(e);document.getElementById('err').textContent='读歌失败: '+(e.message||e);alert('这首歌没读出来，换一首试试？\n'+(e.message||e));intro.style.pointerEvents='';}
+    npName.textContent=name;npMood.textContent='· '+spec.M.label+' · '+flowerCN[spec.flower];
+    document.getElementById('pauseBtn').textContent='暂停';hide(intro);show(hud);
+  }catch(e){console.error(e);errEl.textContent='读歌失败: '+(e.message||e);alert('这首歌没读出来，换一首试试？\n'+(e.message||e));intro.style.pointerEvents='';}
 }
-function formCN(f){return {flora:'花树',crystal:'晶簇',lantern:'灯花',spirit:'光灵'}[f]||f;}
-function onEnd(){endedAt=performance.now();if(!keptThis){keptThis=true;const g=loadG(),fp=Field.live.spec.fp;
-  if(!g.some(x=>x.seed===fp.seed)){g.push({seed:fp.seed,name:Field.live.spec.name,when:Date.now(),e:fp.energy,b:fp.brightness,d:fp.dynamics,dur:fp.duration,src:Field.live.srcUrl||null});saveG(g);}
-  toast('这一株留在了你的岛上 🌱');}}
+function memOf(fl){const fp=fl.spec.fp;return{seed:fp.seed,name:fl.spec.name,when:Date.now(),e:fp.energy,b:fp.brightness,d:fp.dynamics,dur:fp.duration,src:fl.srcUrl||null};}
+function specOf(it){return genSpec({energy:it.e,brightness:it.b,dynamics:it.d,seed:it.seed,duration:it.dur},it.name);}
+let keptThis=false;
+function onEnd(){endedAt=performance.now();if(!keptThis){keptThis=true;const g=loadG();if(Field.live&&!g.some(x=>x.seed===Field.live.spec.fp.seed)){g.push(memOf(Field.live));saveG(g);}toast('这朵留在了你的花园里 🌸');}}
 
 const drop=document.getElementById('drop'),fileInput=document.getElementById('file');
 drop.addEventListener('click',()=>fileInput.click());
@@ -589,23 +445,19 @@ fileInput.addEventListener('change',e=>{const f=e.target.files[0];if(f)readFile(
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'){const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('audio'))readFile(f);}drop.classList.remove('hot');}));
 function readFile(f){Audio_.ensure();const r=new FileReader();r.onload=()=>startBuffer(r.result,f.name.replace(/\.[^.]+$/,''),null);r.readAsArrayBuffer(f);}
 
-const SAMPLES=[['calm','晨之歌','#f4a8c8'],['happy','明亮日','#ffd24a'],['epic','史诗','#ff7a3a'],['sad','蓝色雨','#7ab0ff'],['dark','夜','#9a7aff'],['tense','紧绷','#c06bff'],['gloom','雾','#c0a8e0']];
+const SAMPLES=[['calm','晨之歌','#f4a8c8'],['happy','明亮日','#ffd24a'],['epic','史诗','#ff8a52'],['sad','蓝色雨','#7ab0ff'],['dark','夜','#9a7aff'],['tense','紧绷','#c06bff'],['gloom','雾','#c0a8e0']];
 const seedsEl=document.getElementById('seeds');
 for(const[file,label,col] of SAMPLES){const b=document.createElement('div');b.className='seed';b.innerHTML='<span class="dot" style="color:'+col+'"></span>'+label;b.onclick=()=>playSample('assets/'+file+'.mp3',label);seedsEl.appendChild(b);}
-async function playSample(url,label){Audio_.ensure();try{const ab=await fetch(url).then(r=>r.arrayBuffer());startBuffer(ab,label,url);}catch(e){toast('试听文件没加载到');console.error(e);}}
+async function playSample(url,label){Audio_.ensure();if(!flowersReady){toast('花还在备……稍等');return;}try{const ab=await fetch(url).then(r=>r.arrayBuffer());startBuffer(ab,label,url);}catch(e){toast('试听文件没加载到');console.error(e);}}
 
 document.getElementById('pauseBtn').onclick=function(){if(Audio_.playing){Audio_.pause();this.textContent='继续';}else{Audio_.resume(onEnd);this.textContent='暂停';}};
-document.getElementById('newBtn').onclick=()=>{if(Field.live)commitLive();Audio_.reset();mode='intro';hide(hud);show(intro);intro.style.pointerEvents='';};
-document.getElementById('overviewBtn').onclick=()=>{Cam.ttarget.set(0,2,0);Cam.tr=Math.max(30,islandR*2.2);Cam.tpo=0.7;};
+document.getElementById('newBtn').onclick=()=>{if(Field.live){const g=loadG();if(!g.some(x=>x.seed===Field.live.spec.fp.seed)){g.push(memOf(Field.live));saveG(g);}}Audio_.reset();mode='intro';hide(hud);show(intro);intro.style.pointerEvents='';};
+document.getElementById('overviewBtn').onclick=()=>{const n=Field.flowers.length;Cam.ttarget.set(0,1.5,0);Cam.tr=clamp(10+n*2.2,14,42);Cam.tpo=0.66;};
 
-// boot
-const canvas=document.getElementById('gl');
-canvas.addEventListener('pointerdown',onDown);canvas.addEventListener('pointermove',onMove);
-canvas.addEventListener('pointerup',onUp);canvas.addEventListener('pointercancel',onUp);
-canvas.addEventListener('wheel',onWheel,{passive:false});
-canvas.addEventListener('touchmove',onTouchMove,{passive:false});canvas.addEventListener('touchend',onTouchEnd);
-try{ initGL(); rebuildField(); requestAnimationFrame(frame); }
-catch(e){document.getElementById('err').textContent='init fail: '+(e.message||e)+' '+(e.stack||'');}
+// preload garden from storage so it's there behind the intro
+function bootField(){const wait=setInterval(()=>{if(!flowersReady)return;clearInterval(wait);let i=0;for(const it of loadG())addFlower(specOf(it),i++,{growthT:1,src:it.src});},120);}
+bootField();
+window.__G={Field,Audio_,Cam,cursorState,shedPetals,scene,camera,genSpec,fingerprint,applyMood,get live(){return Field.live;}};
 </script>
 </body>
 </html>
