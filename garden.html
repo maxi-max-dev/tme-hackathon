@@ -200,7 +200,7 @@ function initGL(){
   const canvas=document.getElementById('gl');
   renderer=new THREE.WebGLRenderer({canvas,antialias:true});
   renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
-  renderer.setSize(W,H,false);
+  renderer.setSize(W,H);
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.82;
   scene=new THREE.Scene();
@@ -225,15 +225,13 @@ function initGL(){
 
   // floating island
   island=new THREE.Group();scene.add(island);
-  const topGeo=new THREE.CylinderGeometry(islandR,islandR*0.97,1.4,80,1);
-  // gentle bump on top vertices
-  const pos=topGeo.attributes.position;const rng=mulberry32(12345);
-  for(let i=0;i<pos.count;i++){const y=pos.getY(i);if(y>0.6){const x=pos.getX(i),z=pos.getZ(i);pos.setY(i,y+Math.sin(x*0.7)*0.1+Math.cos(z*0.8)*0.1);}}
-  topGeo.computeVertexNormals();
-  islandTop=new THREE.Mesh(topGeo,new THREE.MeshStandardMaterial({color:0x6f8f55,roughness:0.95,metalness:0.0}));
-  islandTop.position.y=ISLAND_TOP_Y-0.7;islandTop.receiveShadow=true;island.add(islandTop);
-  const rock=new THREE.Mesh(new THREE.CylinderGeometry(islandR*0.97,islandR*0.18,9,40,1),new THREE.MeshStandardMaterial({color:0x3a2f3a,roughness:1,metalness:0}));
-  rock.position.y=ISLAND_TOP_Y-5.6;rock.castShadow=false;island.add(rock);
+  // FLAT disc island (no dome) — a clear flat plane so the live thing sits visibly on top
+  const topGeo=new THREE.CylinderGeometry(islandR,islandR,0.9,72,1);
+  islandTop=new THREE.Mesh(topGeo,new THREE.MeshStandardMaterial({color:0x6f8f55,roughness:0.96,metalness:0.0}));
+  islandTop.position.y=ISLAND_TOP_Y-0.45;islandTop.receiveShadow=true;island.add(islandTop);
+  // thin tapered base for a little floating-island depth (not a ball)
+  const rock=new THREE.Mesh(new THREE.CylinderGeometry(islandR*0.98,islandR*0.62,2.4,48,1),new THREE.MeshStandardMaterial({color:0x4a3f4a,roughness:1,metalness:0}));
+  rock.position.y=ISLAND_TOP_Y-2.1;rock.castShadow=false;island.add(rock);
 
   // cursor light + glow decal + ripple
   cursorLight=new THREE.PointLight(0xfff0d0,0,18,2);scene.add(cursorLight);
@@ -245,7 +243,7 @@ function initGL(){
   applyMood(MOODS.nightbloom);
   addEventListener('resize',onResize);onResize();
 }
-function onResize(){W=innerWidth;H=innerHeight;if(!W||!H)return;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();}
+function onResize(){W=innerWidth;H=innerHeight;if(!W||!H)return;renderer.setSize(W,H);camera.aspect=W/H;camera.updateProjectionMatrix();}
 
 function setSky(topHex,botHex){const g=skyCanvas.getContext('2d');const grd=g.createLinearGradient(0,0,0,256);
   const c=new THREE.Color();c.setHex(topHex);grd.addColorStop(0,'#'+c.getHexString());
