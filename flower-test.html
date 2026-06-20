@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>花模型候选 · 软暖渲染预览</title>
+<style>
+  html,body{margin:0;height:100%;background:#f3e7e0;overflow:hidden;font-family:-apple-system,"PingFang SC",sans-serif;}
+  #c{display:block;width:100vw;height:100vh;}
+  #legend{position:fixed;left:0;right:0;bottom:18px;display:flex;justify-content:space-around;color:#6a5a55;font-size:14px;font-weight:600;pointer-events:none;text-shadow:0 1px 2px rgba(255,255,255,.6);}
+  #err{position:fixed;top:8px;left:8px;color:#b04a4a;font:12px monospace;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="legend"><span>雏菊 daisy</span><span>风铃花 bell</span><span>柔羽花 plume</span><span>向日葵 sunflower</span><span>金盏花 marigold</span></div>
+<div id="err"></div>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+const errEl=document.getElementById('err');
+window.onerror=(m,s,l)=>errEl.textContent='err: '+m+' @'+l;
+try{
+  const canvas=document.getElementById('c');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0xf3e7e0);
+  scene.fog=new THREE.Fog(0xf3e7e0,18,46);
+  const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,200);
+  camera.position.set(0,5.2,12);camera.lookAt(0,1.6,0);
+  // soft warm lighting
+  scene.add(new THREE.HemisphereLight(0xfff2e6,0xe8c9b0,0.9));
+  scene.add(new THREE.AmbientLight(0xfff0e4,0.35));
+  const key=new THREE.DirectionalLight(0xffe8c8,1.5);key.position.set(5,9,7);key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=1;key.shadow.camera.far=40;
+  key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;key.shadow.bias=-0.0004;key.shadow.radius=6;scene.add(key);
+  const fill=new THREE.DirectionalLight(0xffd9e6,0.4);fill.position.set(-6,4,5);scene.add(fill);
+  // soft ground
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(40,64),new THREE.MeshStandardMaterial({color:0xe8d3c4,roughness:1}));
+  ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+
+  const loader=new GLTFLoader();
+  const files=['daisy','bellflower','pastelplume','sunflower','marigold'];
+  const xs=[-7.2,-3.6,0,3.6,7.2];
+  let done=0;
+  files.forEach((name,i)=>{
+    loader.load('assets/flowers/'+name+'.glb',(gltf)=>{
+      const o=gltf.scene;
+      // normalize to a uniform height ~3
+      const box=new THREE.Box3().setFromObject(o);const size=new THREE.Vector3();box.getSize(size);const ctr=new THREE.Vector3();box.getCenter(ctr);
+      const s=3.0/Math.max(0.001,size.y);o.scale.setScalar(s);
+      o.position.set(xs[i]-ctr.x*s, -box.min.y*s, -ctr.z*s);
+      o.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;if(m.material){m.material.roughness=Math.min(1,(m.material.roughness??0.8)+0.1);m.material.flatShading=false;m.material.needsUpdate=true;}}});
+      scene.add(o);done++;
+    },undefined,(e)=>{errEl.textContent+='\nload fail '+name+': '+e;});
+  });
+
+  // gentle auto-orbit for a lively preview
+  let t=0;
+  function loop(){requestAnimationFrame(loop);t+=0.005;
+    camera.position.x=Math.sin(t)*3.2;camera.position.z=12;camera.lookAt(0,1.5,0);
+    scene.traverse(o=>{if(o.userData)o.rotation;});
+    renderer.render(scene,camera);}
+  loop();
+  addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+  window.__loaded=()=>done;
+}catch(e){errEl.textContent='init: '+(e.message||e);}
+</script>
+</body>
+</html>
